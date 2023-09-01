@@ -93,8 +93,8 @@ resource "aws_api_gateway_deployment" "deployment" {
   rest_api_id = aws_api_gateway_rest_api.api.id
 
   triggers = {
-    # Ensure that redeployment happens whenever any tf files change
-    redeployment = sha1(join("", [for f in fileset(path.module, "*.tf") : filesha1("${path.module}/${f}")]))
+    # Ensure that redeployment happens every time
+    redeployment = timestamp()
   }
 
   lifecycle {
