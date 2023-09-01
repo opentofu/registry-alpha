@@ -1,5 +1,5 @@
 resource "aws_api_gateway_rest_api" "api" {
-  name = "opentf-registry"
+  name        = "opentf-registry"
   description = "API Gateway for the OpenTF Registry"
 }
 
@@ -67,9 +67,9 @@ resource "aws_api_gateway_method" "download_method" {
 }
 
 resource "aws_api_gateway_integration" "download_integration" {
-  rest_api_id             = aws_api_gateway_rest_api.api.id
-  resource_id             = aws_api_gateway_resource.arch_resource.id
-  http_method             = aws_api_gateway_method.download_method.http_method
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.arch_resource.id
+  http_method = aws_api_gateway_method.download_method.http_method
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
@@ -83,21 +83,6 @@ resource "aws_api_gateway_integration" "download_integration" {
     "method.request.path.arch",
   ]
 }
-
-#resource "aws_api_gateway_integration_response" "download_integration_response" {
-#  rest_api_id = aws_api_gateway_rest_api.api.id
-#  resource_id = aws_api_gateway_resource.arch_resource.id
-#  http_method = aws_api_gateway_method.download_method.http_method
-#  status_code = "200"
-#
-#  response_templates = {
-#    "application/json" = ""
-#  }
-#
-#  depends_on = [
-#    aws_api_gateway_integration.download_integration
-#  ]
-#}
 
 resource "aws_api_gateway_deployment" "deployment" {
   depends_on = [
@@ -118,42 +103,31 @@ resource "aws_api_gateway_deployment" "deployment" {
 }
 
 resource "aws_api_gateway_stage" "stage" {
-  deployment_id = aws_api_gateway_deployment.deployment.id
-  rest_api_id   = aws_api_gateway_rest_api.api.id
-  stage_name    = "opentf-registry"
+  deployment_id         = aws_api_gateway_deployment.deployment.id
+  rest_api_id           = aws_api_gateway_rest_api.api.id
+  stage_name            = "opentf-registry"
+
+
   cache_cluster_enabled = true
-  cache_cluster_size = "0.5"
+  cache_cluster_size    = "0.5"
 }
 
 resource "aws_api_gateway_method_settings" "download_method_settings" {
   rest_api_id = aws_api_gateway_rest_api.api.id
   stage_name  = aws_api_gateway_stage.stage.stage_name
 
-
+  # This encodes `/` as `~1` to provide the correct path for the method
   method_path = "~1v1~1providers~1{namespace}~1{type}~1{version}~1download~1{os}~1{arch}/GET"
 
   settings {
+    metrics_enabled                         = true
     caching_enabled                         = true
     cache_ttl_in_seconds                    = 3600
     require_authorization_for_cache_control = false
   }
 }
 
-#resource "aws_cloudwatch_log_group" "api_gw" {
-#  name              = "/aws/api_gw/${aws_api_gateway_rest_api.lambda.name}"
-#  retention_in_days = 7
-#}
-#
-#resource "aws_lambda_permission" "api_gw" {
-#  statement_id  = "AllowExecutionFromAPIGateway"
-#  action        = "lambda:InvokeFunction"
-#  function_name = aws_lambda_function.function.function_name
-#  principal     = "apigateway.amazonaws.com"
-#  source_arn    = "${aws_api_gateway_rest_api.lambda.execution_arn}/*/*"
-#}
-
-
 output "base_url" {
   description = "Base URL for API Gateway stage."
-  value       = "https://${aws_api_gateway_rest_api.api.id}.execute-api.us-west-1.amazonaws.com/${aws_api_gateway_stage.stage.stage_name}/"
+  value       = "https://${aws_api_gateway_rest_api.api.id}.execute-api.${var.region}.amazonaws.com/${aws_api_gateway_stage.stage.stage_name}/"
 }
