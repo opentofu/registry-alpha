@@ -72,14 +72,14 @@ func fetchReleases(ctx context.Context, ghClient *github.Client, namespace strin
 func findAndParseManifest(ctx context.Context, ghClient *github.Client, namespace string, name string, assets []*github.ReleaseAsset) (*Manifest, error) {
 	for _, asset := range assets {
 		if strings.HasSuffix(*asset.Name, "_manifest.json") {
+
 			assetContents, err := downloadAssetContents(ctx, ghClient, namespace, name, *asset.ID)
 			if err != nil {
 				return nil, err
 			}
 
-			defer assetContents.Close()
-
 			manifest, err := parseManifestContents(assetContents)
+			assetContents.Close()
 			if err != nil {
 				return nil, err
 			}
