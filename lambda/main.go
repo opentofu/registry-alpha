@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"github.com/google/go-github/v54/github"
+	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
 	"log"
 	"net/http"
@@ -34,10 +35,12 @@ func main() {
 		panic("empty github api token fetched from secrets manager")
 	}
 
-	client := getGithubClient(githubAPIToken)
+	managedGithubClient := getManagedGithubClient(githubAPIToken)
+	rawGithubClient := getRawGithubv4Client(githubAPIToken)
 
 	lambda.Start(Router(Config{
-		GithubClient: client,
+		ManagedGithubClient: managedGithubClient,
+		RawGithubv4Client:   rawGithubClient,
 	}))
 }
 
@@ -64,11 +67,16 @@ func getSecretValue(sm *secretsmanager.SecretsManager, secretName string) (strin
 	return *value.SecretString, nil
 }
 
-func getGithubClient(token string) *github.Client {
-	ts := oauth2.StaticTokenSource(
+func getGithubOauth2Client(token string) *http.Client {
+	return oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
-	)
-	tc := oauth2.NewClient(context.Background(), ts)
+	))
+}
 
-	return github.NewClient(tc)
+func getManagedGithubClient(token string) *github.Client {
+	return github.NewClient(getGithubOauth2Client(token))
+}
+
+func getRawGithubv4Client(token string) *githubv4.Client {
+	return githubv4.NewClient(getGithubOauth2Client(token))
 }

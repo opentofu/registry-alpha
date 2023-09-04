@@ -4,11 +4,13 @@ import (
 	"context"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/google/go-github/v54/github"
+	"github.com/shurcooL/githubv4"
 	"regexp"
 )
 
 type Config struct {
-	GithubClient *github.Client
+	ManagedGithubClient *github.Client
+	RawGithubv4Client   *githubv4.Client
 }
 
 func RouteHandlers(config Config) map[string]LambdaFunc {

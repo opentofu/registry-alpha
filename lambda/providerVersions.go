@@ -27,7 +27,7 @@ func listProviderVersions(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListProvidersPathParams(req)
 
-		versions, err := providers.GetVersions(ctx, config.GithubClient, params.Namespace, params.Type)
+		versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, params.Type)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: 500}, err
 		}

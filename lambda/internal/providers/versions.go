@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/go-github/v54/github"
 	"github.com/opentffoundation/registry/internal/platform"
+	"github.com/shurcooL/githubv4"
 	"io"
 	"net/http"
 	"strings"
@@ -18,8 +18,7 @@ type Version struct {
 	Platforms []platform.Platform `json:"platforms"`
 }
 
-func GetVersions(ctx context.Context, ghClient *github.Client, namespace string, name string) ([]Version, error) {
-
+func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) ([]Version, error) {
 	// the repo name should match the format `terraform-provider-<name>`
 	repoName := fmt.Sprintf("terraform-provider-%s", name)
 
@@ -30,17 +29,19 @@ func GetVersions(ctx context.Context, ghClient *github.Client, namespace string,
 
 	var versions []Version
 	for _, release := range releases {
-		platforms, err := getSupportedArchAndOS(release)
+		assets := release.ReleaseAssets.Nodes
+		// get the supported platforms for this release based on the filenames in the release assets
+		platforms, err := getSupportedArchAndOS(assets)
 		if err != nil {
 			return nil, err
 		}
 
-		manifest, err := findAndParseManifest(ctx, ghClient, namespace, repoName, release.Assets)
+		manifest, err := findAndParseManifest(ctx, assets)
 		if err != nil {
 			return nil, err
 		}
 
-		versionName := *release.TagName
+		versionName := release.TagName
 		if strings.HasPrefix(versionName, "v") {
 			versionName = versionName[1:]
 		}
@@ -57,23 +58,78 @@ func GetVersions(ctx context.Context, ghClient *github.Client, namespace string,
 
 		versions = append(versions, version)
 	}
-
 	return versions, nil
 }
 
-func fetchReleases(ctx context.Context, ghClient *github.Client, namespace string, name string) ([]*github.RepositoryRelease, error) {
-	releases, _, err := ghClient.Repositories.ListReleases(ctx, namespace, name, nil)
-	if err != nil {
-		return nil, err
+type Release struct {
+	TagName       string
+	ReleaseAssets struct {
+		Nodes []ReleaseAsset
+	} `graphql:"releaseAssets(first:100)"`
+	IsDraft      bool
+	IsLatest     bool
+	IsPrerelease bool
+}
+
+type ReleaseAsset struct {
+	ID          string
+	DownloadURL string
+	Name        string
+}
+
+func fetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) ([]Release, error) {
+	// Use the graphql api to fetch the release versions and their artifacts, we do this instead of the managed client call because
+	// we want to reduce the amount of info we fetch from github
+	type responseData struct {
+		Repository struct {
+			Releases struct {
+				PageInfo struct {
+					HasNextPage bool
+					EndCursor   string
+				}
+				Nodes []Release
+			} `graphql:"releases(first: $perPage, orderBy: {field: CREATED_AT, direction: DESC}, after: $endCursor)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
 	}
+
+	// hardcode page size for now
+	// TODO: make this configurable
+	perPage := 100
+
+	variables := map[string]interface{}{
+		"owner":     githubv4.String(namespace),
+		"name":      githubv4.String(name),
+		"perPage":   githubv4.Int(perPage),
+		"endCursor": (*githubv4.String)(nil),
+	}
+	var releases []Release
+	for {
+		var query responseData
+		err := ghClient.Query(ctx, &query, variables)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, r := range query.Repository.Releases.Nodes {
+			if r.IsDraft || r.IsPrerelease {
+				continue
+			}
+			releases = append(releases, r)
+		}
+
+		if !query.Repository.Releases.PageInfo.HasNextPage {
+			break
+		}
+		variables["endCursor"] = githubv4.String(query.Repository.Releases.PageInfo.EndCursor)
+	}
+
 	return releases, nil
 }
 
-func findAndParseManifest(ctx context.Context, ghClient *github.Client, namespace string, name string, assets []*github.ReleaseAsset) (*Manifest, error) {
+func findAndParseManifest(ctx context.Context, assets []ReleaseAsset) (*Manifest, error) {
 	for _, asset := range assets {
-		if strings.HasSuffix(*asset.Name, "_manifest.json") {
-
-			assetContents, err := downloadAssetContents(ctx, ghClient, namespace, name, *asset.ID)
+		if strings.HasSuffix(asset.Name, "_manifest.json") {
+			assetContents, err := downloadAssetContents(ctx, asset.DownloadURL)
 			if err != nil {
 				return nil, err
 			}
@@ -90,33 +146,23 @@ func findAndParseManifest(ctx context.Context, ghClient *github.Client, namespac
 	return nil, nil
 }
 
-func downloadAssetContents(ctx context.Context, ghClient *github.Client, namespace string, name string, assetID int64) (io.ReadCloser, error) {
+func downloadAssetContents(ctx context.Context, downloadURL string) (io.ReadCloser, error) {
 	httpClient := &http.Client{Timeout: 60 * time.Second}
-
-	assetContents, downloadUrl, err := ghClient.Repositories.DownloadReleaseAsset(ctx, namespace, name, assetID, httpClient)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if assetContents == nil && downloadUrl != "" {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadUrl, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			return nil, err
-		}
-
-		assetContents = resp.Body
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
 	}
 
-	if assetContents == nil {
-		return nil, fmt.Errorf("Unable to download github asset contents for assetID : %s", assetID)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to download asset, status code: %d", resp.StatusCode)
 	}
 
-	return assetContents, nil
+	return resp.Body, nil
 }
 
 func parseManifestContents(assetContents io.ReadCloser) (*Manifest, error) {
@@ -134,14 +180,10 @@ func parseManifestContents(assetContents io.ReadCloser) (*Manifest, error) {
 	return manifest, nil
 }
 
-func getSupportedArchAndOS(release *github.RepositoryRelease) ([]platform.Platform, error) {
-	if release == nil {
-		return nil, nil
-	}
-
+func getSupportedArchAndOS(assets []ReleaseAsset) ([]platform.Platform, error) {
 	var platforms []platform.Platform
-	for _, asset := range release.Assets {
-		platform := platform.ExtractPlatformFromArtifact(*asset.Name)
+	for _, asset := range assets {
+		platform := platform.ExtractPlatformFromArtifact(asset.Name)
 		if platform == nil {
 			continue
 		}
