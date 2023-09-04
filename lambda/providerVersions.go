@@ -36,7 +36,10 @@ func listProviderVersions(config Config) LambdaFunc {
 			Versions: versions,
 		}
 
-		resBody, _ := json.Marshal(response)
+		resBody, err := json.Marshal(response)
+		if err != nil {
+			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		}
 		return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
 	}
 }

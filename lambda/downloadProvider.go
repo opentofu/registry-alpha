@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
-	"time"
+	"github.com/opentffoundation/registry/internal/providers"
 )
 
 type DownloadHandlerPathParams struct {
@@ -17,14 +17,21 @@ type DownloadHandlerPathParams struct {
 }
 
 func downloadProviderVersion(config Config) LambdaFunc {
-	return func(_ context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadPathParams(req)
 
-		reqJson, _ := json.Marshal(params)
-		fmt.Println(string(reqJson))
+		versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, params.Namespace, params.Type, params.Version, params.OS, params.Architecture)
+		if err != nil {
+			// log the error too for dev
+			fmt.Printf("error fetching version: %s\n", err)
+			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		}
 
-		time := time.Now().UTC()
-		return events.APIGatewayProxyResponse{StatusCode: 200, Body: fmt.Sprintf("Provider download, generated at %s", time.String())}, nil
+		resBody, err := json.Marshal(versionDownloadResponse)
+		if err != nil {
+			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		}
+		return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
 	}
 }
 

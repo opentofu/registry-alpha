@@ -2,22 +2,21 @@ package providers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/opentffoundation/registry/internal/platform"
 	"github.com/shurcooL/githubv4"
-	"io"
-	"net/http"
 	"strings"
-	"time"
 )
 
-type Version struct {
-	Version   string              `json:"version"`
-	Protocols []string            `json:"protocols"`
-	Platforms []platform.Platform `json:"platforms"`
-}
-
+// GetVersions fetches and returns a list of available versions of a given  provider hosted on GitHub.
+// The returned versions also include information about supported platforms and the Terraform protocol versions they are compatible with.
+//
+// Parameters:
+// - ctx: The context used to control cancellations and timeouts.
+// - ghClient: The GitHub GraphQL client to interact with the GitHub GraphQL API.
+// - namespace: The GitHub namespace (typically, the organization or user) under which the provider repository is hosted.
+// - name: The name of the provider without the "terraform-provider-" prefix.
+//
+// Returns a slice of Version structures detailing each available version. If an error occurs during fetching or processing, it returns an error.
 func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) ([]Version, error) {
 	// the repo name should match the format `terraform-provider-<name>`
 	repoName := fmt.Sprintf("terraform-provider-%s", name)
@@ -30,22 +29,26 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 	var versions []Version
 	for _, release := range releases {
 		assets := release.ReleaseAssets.Nodes
-		// get the supported platforms for this release based on the filenames in the release assets
+
+		// Extract supported platforms from the release assets.
 		platforms, err := getSupportedArchAndOS(assets)
 		if err != nil {
 			return nil, err
 		}
 
+		// Find and parse the manifest associated with the assets.
 		manifest, err := findAndParseManifest(ctx, assets)
 		if err != nil {
 			return nil, err
 		}
 
+		// Normalize the version name.
 		versionName := release.TagName
 		if strings.HasPrefix(versionName, "v") {
 			versionName = versionName[1:]
 		}
 
+		// Construct the Version struct.
 		version := Version{
 			Version:   versionName,
 			Platforms: platforms,
@@ -61,133 +64,78 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 	return versions, nil
 }
 
-type Release struct {
-	TagName       string
-	ReleaseAssets struct {
-		Nodes []ReleaseAsset
-	} `graphql:"releaseAssets(first:100)"`
-	IsDraft      bool
-	IsLatest     bool
-	IsPrerelease bool
-}
+// GetVersion fetches and returns detailed information about a specific version of a provider hosted on GitHub.
+// The returned information includes the download URL, the filename, SHA sums, and more details pertinent to the specific version, OS, and architecture.
+//
+// Parameters:
+// - ctx: The context used to control cancellations and timeouts.
+// - ghClient: The GitHub GraphQL client to interact with the GitHub GraphQL API.
+// - namespace: The GitHub namespace (typically, the organization or user) under which the provider repository is hosted.
+// - name: The name of the provider without the "terraform-provider-" prefix.
+// - version: The specific version of the Terraform provider to fetch details for.
+// - OS: The operating system for which the provider binary is intended.
+// - arch: The architecture for which the provider binary is intended.
+//
+// Returns a VersionDetails structure with detailed information about the specified version. If an error occurs during fetching or processing, it returns an error.
 
-type ReleaseAsset struct {
-	ID          string
-	DownloadURL string
-	Name        string
-}
+func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, version string, OS string, arch string) (*VersionDetails, error) {
+	// Construct the repo name.
+	repoName := fmt.Sprintf("terraform-provider-%s", name)
 
-func fetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) ([]Release, error) {
-	// Use the graphql api to fetch the release versions and their artifacts, we do this instead of the managed client call because
-	// we want to reduce the amount of info we fetch from github
-	type responseData struct {
-		Repository struct {
-			Releases struct {
-				PageInfo struct {
-					HasNextPage bool
-					EndCursor   string
-				}
-				Nodes []Release
-			} `graphql:"releases(first: $perPage, orderBy: {field: CREATED_AT, direction: DESC}, after: $endCursor)"`
-		} `graphql:"repository(owner: $owner, name: $name)"`
-	}
-
-	// hardcode page size for now
-	// TODO: make this configurable
-	perPage := 100
-
-	variables := map[string]interface{}{
-		"owner":     githubv4.String(namespace),
-		"name":      githubv4.String(name),
-		"perPage":   githubv4.Int(perPage),
-		"endCursor": (*githubv4.String)(nil),
-	}
-	var releases []Release
-	for {
-		var query responseData
-		err := ghClient.Query(ctx, &query, variables)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, r := range query.Repository.Releases.Nodes {
-			if r.IsDraft || r.IsPrerelease {
-				continue
-			}
-			releases = append(releases, r)
-		}
-
-		if !query.Repository.Releases.PageInfo.HasNextPage {
-			break
-		}
-		variables["endCursor"] = githubv4.String(query.Repository.Releases.PageInfo.EndCursor)
-	}
-
-	return releases, nil
-}
-
-func findAndParseManifest(ctx context.Context, assets []ReleaseAsset) (*Manifest, error) {
-	for _, asset := range assets {
-		if strings.HasSuffix(asset.Name, "_manifest.json") {
-			assetContents, err := downloadAssetContents(ctx, asset.DownloadURL)
-			if err != nil {
-				return nil, err
-			}
-
-			manifest, err := parseManifestContents(assetContents)
-			assetContents.Close()
-			if err != nil {
-				return nil, err
-			}
-
-			return manifest, nil
-		}
-	}
-	return nil, nil
-}
-
-func downloadAssetContents(ctx context.Context, downloadURL string) (io.ReadCloser, error) {
-	httpClient := &http.Client{Timeout: 60 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	// Fetch the specific release for the given version.
+	release, err := findRelease(ctx, ghClient, namespace, repoName, version)
 	if err != nil {
 		return nil, err
 	}
+	if release == nil {
+		return nil, fmt.Errorf("release not found")
+	}
 
-	resp, err := httpClient.Do(req)
+	// Initialize the VersionDetails struct.
+	result := &VersionDetails{
+		OS:   OS,
+		Arch: arch,
+	}
+
+	// Find and parse the manifest from the release assets.
+	manifest, err := findAndParseManifest(ctx, release.ReleaseAssets.Nodes)
 	if err != nil {
 		return nil, err
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to download asset, status code: %d", resp.StatusCode)
+	if manifest != nil {
+		result.Protocols = manifest.Metadata.ProtocolVersions
+	} else {
+		result.Protocols = []string{"5.0"}
 	}
 
-	return resp.Body, nil
-}
+	// Identify the appropriate asset for download based on OS and architecture.
+	assetToDownload := findAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", OS, arch))
+	if assetToDownload == nil {
+		return nil, fmt.Errorf("could not find asset to download")
+	}
+	result.Filename = assetToDownload.Name
+	result.DownloadURL = assetToDownload.DownloadURL
 
-func parseManifestContents(assetContents io.ReadCloser) (*Manifest, error) {
-	contents, err := io.ReadAll(assetContents)
+	// Locate the SHA256 checksums and its signature from the release assets.
+	shaSumsAsset := findAssetBySuffix(release.ReleaseAssets.Nodes, "_SHA256SUMS")
+	shasumsSigAsset := findAssetBySuffix(release.ReleaseAssets.Nodes, "_SHA256SUMS.sig")
+	if shaSumsAsset == nil || shasumsSigAsset == nil {
+		return nil, fmt.Errorf("could not find shasums or its signature asset")
+	}
+	result.SHASumsURL = shaSumsAsset.DownloadURL
+	result.SHASumsSignatureURL = shasumsSigAsset.DownloadURL
+
+	// Extract the SHA256 checksum for the asset to download.
+	shaSum, err := getShaSum(ctx, shaSumsAsset.DownloadURL, result.Filename)
 	if err != nil {
 		return nil, err
 	}
+	result.SHASum = shaSum
 
-	var manifest *Manifest
-	err = json.Unmarshal(contents, &manifest)
-	if err != nil {
-		return nil, err
+	// TODO: Handle GPG keys.
+	result.SigningKeys = SigningKeys{
+		GPGPublicKeys: []GPGPublicKey{},
 	}
 
-	return manifest, nil
-}
-
-func getSupportedArchAndOS(assets []ReleaseAsset) ([]platform.Platform, error) {
-	var platforms []platform.Platform
-	for _, asset := range assets {
-		platform := platform.ExtractPlatformFromArtifact(asset.Name)
-		if platform == nil {
-			continue
-		}
-		platforms = append(platforms, *platform)
-	}
-	return platforms, nil
+	return result, nil
 }
