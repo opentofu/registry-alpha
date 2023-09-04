@@ -19,7 +19,11 @@ type Version struct {
 }
 
 func GetVersions(ctx context.Context, ghClient *github.Client, namespace string, name string) ([]Version, error) {
-	releases, err := fetchReleases(ctx, ghClient, namespace, name)
+
+	// the repo name should match the format `terraform-provider-<name>`
+	repoName := fmt.Sprintf("terraform-provider-%s", name)
+
+	releases, err := fetchReleases(ctx, ghClient, namespace, repoName)
 	if err != nil {
 		return nil, err
 	}
@@ -31,13 +35,15 @@ func GetVersions(ctx context.Context, ghClient *github.Client, namespace string,
 			return nil, err
 		}
 
-		manifest, err := findAndParseManifest(ctx, ghClient, namespace, name, release.Assets)
+		manifest, err := findAndParseManifest(ctx, ghClient, namespace, repoName, release.Assets)
 		if err != nil {
 			return nil, err
 		}
 
+		versionName := strings.ReplaceAll(*release.TagName, "v", "")
+
 		version := Version{
-			Version:   *release.TagName,
+			Version:   versionName,
 			Platforms: platforms,
 		}
 		if manifest != nil {
