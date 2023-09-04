@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/google/go-github/v54/github"
 	"regexp"
@@ -37,8 +36,6 @@ func getRouteHandler(config Config, path string) LambdaFunc {
 
 func Router(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-		fmt.Printf("Request: %+v\n", req)
-		fmt.Printf("Path: %s\n", req.Path)
 		handler := getRouteHandler(config, req.Path)
 		if handler == nil {
 			return events.APIGatewayProxyResponse{StatusCode: 404}, nil
