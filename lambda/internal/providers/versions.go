@@ -51,6 +51,8 @@ func GetVersions(ctx context.Context, ghClient *github.Client, namespace string,
 		}
 		if manifest != nil {
 			version.Protocols = manifest.Metadata.ProtocolVersions
+		} else {
+			version.Protocols = []string{"5.0"}
 		}
 
 		versions = append(versions, version)
