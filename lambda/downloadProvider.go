@@ -12,19 +12,20 @@ type DownloadHandlerPathParams struct {
 	Architecture string `json:"arch"`
 	OS           string `json:"os"`
 	Namespace    string `json:"namespace"`
-	Name         string `json:"name"`
+	Type         string `json:"type"`
 	Version      string `json:"version"`
 }
 
-func downloadProviderVersion(_ context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	params := getDownloadPathParams(req)
+func downloadProviderVersion(config Config) LambdaFunc {
+	return func(_ context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+		params := getDownloadPathParams(req)
 
-	reqJson, _ := json.Marshal(params)
-	fmt.Println(string(reqJson))
+		reqJson, _ := json.Marshal(params)
+		fmt.Println(string(reqJson))
 
-	time := time.Now().UTC()
-
-	return events.APIGatewayProxyResponse{StatusCode: 200, Body: fmt.Sprintf("Hello World, generated at %s", time.String())}, nil
+		time := time.Now().UTC()
+		return events.APIGatewayProxyResponse{StatusCode: 200, Body: fmt.Sprintf("Provider download, generated at %s", time.String())}, nil
+	}
 }
 
 func getDownloadPathParams(req events.APIGatewayProxyRequest) DownloadHandlerPathParams {
@@ -32,7 +33,7 @@ func getDownloadPathParams(req events.APIGatewayProxyRequest) DownloadHandlerPat
 		Architecture: req.PathParameters["arch"],
 		OS:           req.PathParameters["os"],
 		Namespace:    req.PathParameters["namespace"],
-		Name:         req.PathParameters["name"],
+		Type:         req.PathParameters["type"],
 		Version:      req.PathParameters["version"],
 	}
 }

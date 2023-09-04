@@ -24,6 +24,7 @@ resource "aws_lambda_function" "function" {
   role          = aws_iam_role.lambda.arn
   handler       = local.binary_name
   memory_size   = 128
+  timeout       = 60
 
   filename         = local.archive_path
   source_code_hash = data.archive_file.function_archive.output_base64sha256
@@ -32,6 +33,7 @@ resource "aws_lambda_function" "function" {
 
   environment {
     variables = {
+      GITHUB_TOKEN_SECRET_ASM_NAME = aws_secretsmanager_secret.github_api_token.name
     }
   }
 }

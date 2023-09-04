@@ -12,6 +12,30 @@ data "aws_iam_policy_document" "assume_lambda_role" {
   }
 }
 
+data "aws_iam_policy_document" "github_api_token_secrets_iam_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue",
+    ]
+
+    resources = [
+      aws_secretsmanager_secret.github_api_token.arn,
+    ]
+  }
+}
+
+resource "aws_iam_policy" "lambda_secrets_policy" {
+  name        = "RegistryLambdaSecretsPolicy"
+  description = "Policy for lambda to pull its secrets"
+  policy      = data.aws_iam_policy_document.github_api_token_secrets_iam_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_secrets_policy_attachment" {
+  role       = aws_iam_role.lambda.id
+  policy_arn = aws_iam_policy.lambda_secrets_policy.arn
+}
+
 resource "aws_iam_role" "lambda" {
   name               = "RegistryLambdaRole"
   description        = "Role for the registry to assume lambda"
