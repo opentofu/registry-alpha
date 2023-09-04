@@ -40,7 +40,10 @@ func GetVersions(ctx context.Context, ghClient *github.Client, namespace string,
 			return nil, err
 		}
 
-		versionName := strings.ReplaceAll(*release.TagName, "v", "")
+		versionName := *release.TagName
+		if strings.HasPrefix(versionName, "v") {
+			versionName = versionName[1:]
+		}
 
 		version := Version{
 			Version:   versionName,
