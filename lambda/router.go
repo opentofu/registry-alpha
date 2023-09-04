@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/google/go-github/v54/github"
 	"github.com/shurcooL/githubv4"
@@ -22,6 +23,9 @@ func RouteHandlers(config Config) map[string]LambdaFunc {
 		// List provider versions
 		// `/v1/providers/{namespace}/{type}`
 		"^/v1/providers/[^/]+/[^/]+/versions$": listProviderVersions(config),
+
+		// .well-known/terraform.json
+		"^/.well-known/terraform.json$": terraformWellknownMetadataHandler(config),
 	}
 }
 
@@ -40,7 +44,7 @@ func Router(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		handler := getRouteHandler(config, req.Path)
 		if handler == nil {
-			return events.APIGatewayProxyResponse{StatusCode: 404}, nil
+			return events.APIGatewayProxyResponse{StatusCode: 404, Body: fmt.Sprintf("No route handler found for path %s", req.Path)}, nil
 		}
 
 		return handler(ctx, req)
