@@ -37,14 +37,10 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 	return versions, nil
 }
 
-func GetVersionDownloadUrl(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, system string, version string) (*string, error) {
+func GetVersionDownloadUrl(_ context.Context, namespace string, name string, system string, version string) string {
 	// the repo name should match the format `terraform-<system>-<name>`
 	repoName := fmt.Sprintf("terraform-%s-%s", system, name)
 
-	release, err := github.FindRelease(ctx, ghClient, namespace, repoName, version)
-	if err != nil {
-		return nil, err
-	}
-
-	return &release.TagCommit.TarballUrl, nil
+	// nothing fancy, just return the url for the release
+	return fmt.Sprintf("git::https://github.com/%s/%s?ref=v%s", namespace, repoName, version)
 }

@@ -25,6 +25,10 @@ func getListModuleVersionsPathParams(req events.APIGatewayProxyRequest) ListModu
 }
 
 type ListModuleVersionsResponse struct {
+	Modules []ModulesResponse `json:"modules"`
+}
+
+type ModulesResponse struct {
 	Versions []modules.Version `json:"versions"`
 }
 
@@ -39,7 +43,11 @@ func listModuleVersions(config Config) LambdaFunc {
 		}
 
 		response := ListModuleVersionsResponse{
-			Versions: versions,
+			Modules: []ModulesResponse{
+				{
+					Versions: versions,
+				},
+			},
 		}
 
 		resBody, err := json.Marshal(response)
