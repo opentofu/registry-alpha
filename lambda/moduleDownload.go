@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/opentffoundation/registry/internal/modules"
 )
@@ -18,15 +17,12 @@ func downloadModuleVersion(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadModuleHandlerPathParams(req)
 
-		url, err := modules.GetVersionDownloadUrl(ctx, config.RawGithubv4Client, params.Namespace, params.Name, params.System, params.Version)
-		if err != nil {
-			// log the error too for dev
-			fmt.Printf("error fetching version: %s\n", err)
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
-		}
+		url := modules.GetVersionDownloadUrl(ctx, params.Namespace, params.Name, params.System, params.Version)
+
+		// TODO : check that the repo does exist
 
 		return events.APIGatewayProxyResponse{StatusCode: 200, Body: "", Headers: map[string]string{
-			"X-Terraform-Get": *url,
+			"X-Terraform-Get": url,
 		}}, nil
 	}
 }
