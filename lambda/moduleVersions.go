@@ -34,6 +34,7 @@ func listModuleVersions(config Config) LambdaFunc {
 
 		versions, err := modules.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, params.Name, params.System)
 		if err != nil {
+			// TODO: handle missing repo
 			return events.APIGatewayProxyResponse{StatusCode: 500}, err
 		}
 
