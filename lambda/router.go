@@ -21,8 +21,12 @@ func RouteHandlers(config Config) map[string]LambdaFunc {
 		"^/v1/providers/[^/]+/[^/]+/[^/]+/download/[^/]+/[^/]+$": downloadProviderVersion(config),
 
 		// List provider versions
-		// `/v1/providers/{namespace}/{type}`
+		// `/v1/providers/{namespace}/{type}/versions`
 		"^/v1/providers/[^/]+/[^/]+/versions$": listProviderVersions(config),
+
+		// List module versions
+		// `/v1/modules/{namespace}/{name}/{system}/versions`
+		"^/v1/modules/[^/]+/[^/]+/[^/]+/versions$": listModuleVersions(config),
 
 		// .well-known/terraform.json
 		"^/.well-known/terraform.json$": terraformWellknownMetadataHandler(config),

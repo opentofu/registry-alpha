@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
+	"github.com/opentffoundation/registry/internal/github"
 	"github.com/shurcooL/githubv4"
 	"strings"
 )
@@ -21,7 +22,7 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 	// the repo name should match the format `terraform-provider-<name>`
 	repoName := fmt.Sprintf("terraform-provider-%s", name)
 
-	releases, err := fetchReleases(ctx, ghClient, namespace, repoName)
+	releases, err := github.FetchReleases(ctx, ghClient, namespace, repoName)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 	repoName := fmt.Sprintf("terraform-provider-%s", name)
 
 	// Fetch the specific release for the given version.
-	release, err := findRelease(ctx, ghClient, namespace, repoName, version)
+	release, err := github.FindRelease(ctx, ghClient, namespace, repoName, version)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +110,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 	}
 
 	// Identify the appropriate asset for download based on OS and architecture.
-	assetToDownload := findAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", OS, arch))
+	assetToDownload := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", OS, arch))
 	if assetToDownload == nil {
 		return nil, fmt.Errorf("could not find asset to download")
 	}
@@ -117,8 +118,8 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 	result.DownloadURL = assetToDownload.DownloadURL
 
 	// Locate the SHA256 checksums and its signature from the release assets.
-	shaSumsAsset := findAssetBySuffix(release.ReleaseAssets.Nodes, "_SHA256SUMS")
-	shasumsSigAsset := findAssetBySuffix(release.ReleaseAssets.Nodes, "_SHA256SUMS.sig")
+	shaSumsAsset := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, "_SHA256SUMS")
+	shasumsSigAsset := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, "_SHA256SUMS.sig")
 	if shaSumsAsset == nil || shasumsSigAsset == nil {
 		return nil, fmt.Errorf("could not find shasums or its signature asset")
 	}

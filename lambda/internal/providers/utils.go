@@ -3,13 +3,14 @@ package providers
 import (
 	"context"
 	"fmt"
+	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/platform"
 	"io"
 	"strings"
 )
 
 func getShaSum(ctx context.Context, downloadURL string, filename string) (string, error) {
-	assetContents, err := downloadAssetContents(ctx, downloadURL)
+	assetContents, err := github.DownloadAssetContents(ctx, downloadURL)
 	if err != nil {
 		return "", err
 	}
@@ -29,7 +30,7 @@ func getShaSum(ctx context.Context, downloadURL string, filename string) (string
 	return "", fmt.Errorf("could not find shasum for %s", filename)
 }
 
-func getSupportedArchAndOS(assets []ReleaseAsset) ([]platform.Platform, error) {
+func getSupportedArchAndOS(assets []github.ReleaseAsset) ([]platform.Platform, error) {
 	var platforms []platform.Platform
 	for _, asset := range assets {
 		platform := platform.ExtractPlatformFromArtifact(asset.Name)
