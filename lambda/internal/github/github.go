@@ -32,9 +32,12 @@ type GHRelease struct {
 	ReleaseAssets struct {
 		Nodes []ReleaseAsset // A list of assets for the release.
 	} `graphql:"releaseAssets(first:100)"`
-	IsDraft      bool // Indicates if the release is a draft.
-	IsLatest     bool // Indicates if the release is the latest.
-	IsPrerelease bool // Indicates if the release is a prerelease.
+	IsDraft      bool     // Indicates if the release is a draft.
+	IsLatest     bool     // Indicates if the release is the latest.
+	IsPrerelease bool     // Indicates if the release is a prerelease.
+	TagCommit    struct { // The commit associated with the release tag.
+		TarballUrl string // The URL to download the release tarball.
+	}
 }
 
 // ReleaseAsset represents a single asset within a GitHub release.
