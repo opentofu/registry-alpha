@@ -19,10 +19,7 @@ import (
 //
 // Returns a slice of Version structures detailing each available version. If an error occurs during fetching or processing, it returns an error.
 func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) ([]Version, error) {
-	// the repo name should match the format `terraform-provider-<name>`
-	repoName := fmt.Sprintf("terraform-provider-%s", name)
-
-	releases, err := github.FetchReleases(ctx, ghClient, namespace, repoName)
+	releases, err := github.FetchReleases(ctx, ghClient, namespace, name)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +77,8 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 // Returns a VersionDetails structure with detailed information about the specified version. If an error occurs during fetching or processing, it returns an error.
 
 func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, version string, OS string, arch string) (*VersionDetails, error) {
-	// Construct the repo name.
-	repoName := fmt.Sprintf("terraform-provider-%s", name)
-
 	// Fetch the specific release for the given version.
-	release, err := github.FindRelease(ctx, ghClient, namespace, repoName, version)
+	release, err := github.FindRelease(ctx, ghClient, namespace, name, version)
 	if err != nil {
 		return nil, err
 	}

@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/opentffoundation/registry/internal/modules"
+	"github.com/opentffoundation/registry/internal/github"
 )
 
 type DownloadModuleHandlerPathParams struct {
@@ -17,12 +18,21 @@ func downloadModuleVersion(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadModuleHandlerPathParams(req)
 
-		url := modules.GetVersionDownloadUrl(ctx, params.Namespace, params.Name, params.System, params.Version)
+		// the repo name should match the format `terraform-<system>-<name>`
+		repoName := fmt.Sprintf("terraform-%s-%s", params.System, params.Name)
 
-		// TODO : check that the repo does exist
+		// check if the repo exists
+		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
+		if err != nil {
+			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		}
+
+		if !exists {
+			return NotFoundResponse, nil
+		}
 
 		return events.APIGatewayProxyResponse{StatusCode: 200, Body: "", Headers: map[string]string{
-			"X-Terraform-Get": url,
+			"X-Terraform-Get": fmt.Sprintf("git::https://github.com/%s/%s?ref=v%s", params.Namespace, repoName, params.Version),
 		}}, nil
 	}
 }

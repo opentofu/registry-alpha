@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
 )
 
@@ -27,7 +29,19 @@ func listProviderVersions(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListProvidersPathParams(req)
 
-		versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, params.Type)
+		// Construct the repo name.
+		repoName := fmt.Sprintf("terraform-provider-%s", params.Type)
+
+		// check the repo exists
+		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
+		if err != nil {
+			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		}
+		if !exists {
+			return NotFoundResponse, nil
+		}
+
+		versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, repoName)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: 500}, err
 		}
