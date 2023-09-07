@@ -53,9 +53,3 @@ resource "aws_cloudwatch_log_group" "log_group" {
   name              = "/aws/lambda/${aws_lambda_function.function.function_name}"
   retention_in_days = 7
 }
-
-output "function_name" {
-  description = "Name of the Lambda function."
-
-  value = aws_lambda_function.function.function_name
-}
