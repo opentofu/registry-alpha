@@ -2,33 +2,35 @@ package modules
 
 import (
 	"context"
-	"github.com/opentffoundation/registry/internal/github"
+	"fmt"
+	"strings"
+
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/shurcooL/githubv4"
 
-	"strings"
+	"github.com/opentffoundation/registry/internal/github"
 )
 
 // TODO: doc
-func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) ([]Version, error) {
-	releases, err := github.FetchReleases(ctx, ghClient, namespace, name)
-	if err != nil {
-		return nil, err
-	}
+func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []Version, err error) {
+	err = xray.Capture(ctx, "module.versions", func(tracedCtx context.Context) error {
+		xray.AddAnnotation(tracedCtx, "namespace", namespace)
+		xray.AddAnnotation(tracedCtx, "name", name)
 
-	var versions []Version
-	for _, release := range releases {
-		// Normalize the version name.
-		versionName := release.TagName
-		if strings.HasPrefix(versionName, "v") {
-			versionName = versionName[1:]
+		releases, fetchErr := github.FetchReleases(tracedCtx, ghClient, namespace, name)
+		if err != nil {
+			return fmt.Errorf("failed to fetch releases: %w", fetchErr)
 		}
 
-		// Construct the Version struct.
-		version := Version{
-			Version: versionName,
+		for _, release := range releases {
+			versions = append(versions, Version{
+				// Normalize the version string to remove the leading "v" if it exists.
+				Version: strings.TrimPrefix(release.TagName, "v"),
+			})
 		}
 
-		versions = append(versions, version)
-	}
-	return versions, nil
+		return nil
+	})
+
+	return
 }

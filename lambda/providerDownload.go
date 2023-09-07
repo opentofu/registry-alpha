@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/aws/aws-lambda-go/events"
+
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
 )
@@ -20,12 +22,13 @@ type DownloadHandlerPathParams struct {
 func downloadProviderVersion(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadPathParams(req)
+		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 
 		// Construct the repo name.
 		repoName := providers.GetRepoName(params.Type)
 
 		// check the repo exists
-		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
+		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: 500}, err
 		}
@@ -33,7 +36,7 @@ func downloadProviderVersion(config Config) LambdaFunc {
 			return NotFoundResponse, nil
 		}
 
-		versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, params.Namespace, params.Type, params.Version, params.OS, params.Architecture)
+		versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, params.Type, params.Version, params.OS, params.Architecture)
 		if err != nil {
 			// log the error too for dev
 			fmt.Printf("error fetching version: %s\n", err)

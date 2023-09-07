@@ -3,31 +3,40 @@ package providers
 import (
 	"context"
 	"fmt"
-	"github.com/opentffoundation/registry/internal/github"
-	"github.com/opentffoundation/registry/internal/platform"
 	"io"
 	"strings"
+
+	"github.com/aws/aws-xray-sdk-go/xray"
+	"github.com/opentffoundation/registry/internal/github"
+	"github.com/opentffoundation/registry/internal/platform"
 )
 
-func getShaSum(ctx context.Context, downloadURL string, filename string) (string, error) {
-	assetContents, err := github.DownloadAssetContents(ctx, downloadURL)
-	if err != nil {
-		return "", err
-	}
+func getShaSum(ctx context.Context, downloadURL string, filename string) (shaSum string, err error) {
+	err = xray.Capture(ctx, "filename.shasum", func(tracedCtx context.Context) error {
+		xray.AddAnnotation(tracedCtx, "filename", filename)
 
-	contents, err := io.ReadAll(assetContents)
-	if err != nil {
-		return "", err
-	}
-
-	lines := strings.Split(string(contents), "\n")
-	for _, line := range lines {
-		if strings.HasSuffix(line, filename) {
-			return strings.Split(line, " ")[0], nil
+		assetContents, assetErr := github.DownloadAssetContents(tracedCtx, downloadURL)
+		if assetContents != nil {
+			return fmt.Errorf("failed to download asset contents: %w", assetErr)
 		}
-	}
 
-	return "", fmt.Errorf("could not find shasum for %s", filename)
+		contents, contentsErr := io.ReadAll(assetContents)
+		if err != nil {
+			return fmt.Errorf("failed to read asset contents: %w", contentsErr)
+		}
+
+		lines := strings.Split(string(contents), "\n")
+		for _, line := range lines {
+			if strings.HasSuffix(line, filename) {
+				shaSum = strings.Split(line, " ")[0]
+				break
+			}
+		}
+
+		return nil
+	})
+
+	return
 }
 
 func getSupportedArchAndOS(assets []github.ReleaseAsset) ([]platform.Platform, error) {
