@@ -3,12 +3,14 @@ package github
 import (
 	"context"
 	"fmt"
-	"github.com/google/go-github/v54/github"
-	"github.com/shurcooL/githubv4"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-xray-sdk-go/xray"
+	"github.com/google/go-github/v54/github"
+	"github.com/shurcooL/githubv4"
 )
 
 // GHRepository encapsulates GitHub repository details with a focus on its releases.
@@ -140,7 +142,8 @@ func FindAssetBySuffix(assets []ReleaseAsset, suffix string) *ReleaseAsset {
 }
 
 func DownloadAssetContents(ctx context.Context, downloadURL string) (io.ReadCloser, error) {
-	httpClient := &http.Client{Timeout: 60 * time.Second}
+	httpClient := xray.Client(&http.Client{Timeout: 60 * time.Second})
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
 		return nil, err
