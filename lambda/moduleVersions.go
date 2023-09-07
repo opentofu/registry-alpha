@@ -1,14 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+
 	"github.com/aws/aws-lambda-go/events"
+
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/modules"
-)
-
-import (
-	"context"
 )
 
 type ListModuleVersionsPathParams struct {
@@ -36,7 +35,6 @@ type ModulesResponse struct {
 func listModuleVersions(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListModuleVersionsPathParams(req)
-
 		repoName := modules.GetRepoName(params.System, params.Name)
 
 		// check the repo exists

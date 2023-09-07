@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -27,6 +28,13 @@ func main() {
 		panic("GITHUB_TOKEN_SECRET_ASM_NAME environment variable not set")
 	}
 
+	redirects := make(map[string]string)
+	if redirectsJSON, ok := os.LookupEnv("PROVIDER_NAMESPACE_REDIRECTS"); ok {
+		if err := json.Unmarshal([]byte(redirectsJSON), &redirects); err != nil {
+			panic(fmt.Errorf("could not parse PROVIDER_NAMESPACE_REDIRECTS: %w", err))
+		}
+	}
+
 	ctx := context.Background()
 
 	config, err := buildConfig(ctx, githubTokenSecretName)
@@ -34,6 +42,7 @@ func main() {
 		panic(err)
 	}
 
+	config.Redirects = redirects
 	lambda.Start(Router(*config))
 }
 

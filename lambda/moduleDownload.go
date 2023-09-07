@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-lambda-go/events"
+
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/modules"
 )
@@ -18,7 +20,7 @@ type DownloadModuleHandlerPathParams struct {
 func downloadModuleVersion(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadModuleHandlerPathParams(req)
-		
+
 		repoName := modules.GetRepoName(params.System, params.Name)
 
 		// check if the repo exists

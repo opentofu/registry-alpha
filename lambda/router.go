@@ -13,6 +13,15 @@ import (
 type Config struct {
 	ManagedGithubClient *github.Client
 	RawGithubv4Client   *githubv4.Client
+	Redirects           map[string]string
+}
+
+func (c Config) EffectiveNamespace(namespace string) string {
+	if redirect, ok := c.Redirects[namespace]; ok {
+		return redirect
+	}
+
+	return namespace
 }
 
 func RouteHandlers(config Config) map[string]LambdaFunc {

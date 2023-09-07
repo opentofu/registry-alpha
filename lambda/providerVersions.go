@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/aws/aws-lambda-go/events"
+
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
 )
@@ -27,12 +29,13 @@ type ListProviderVersionsResponse struct {
 func listProviderVersions(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListProvidersPathParams(req)
+		effectiveNamespace := config.EffectiveNamespace(params.Namespace)
 
 		// Construct the repo name.
 		repoName := providers.GetRepoName(params.Type)
 
 		// check the repo exists
-		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
+		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: 500}, err
 		}
@@ -40,7 +43,7 @@ func listProviderVersions(config Config) LambdaFunc {
 			return NotFoundResponse, nil
 		}
 
-		versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, repoName)
+		versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, effectiveNamespace, repoName)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: 500}, err
 		}
