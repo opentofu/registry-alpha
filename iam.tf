@@ -43,6 +43,7 @@ resource "aws_iam_role" "lambda" {
 }
 
 data "aws_iam_policy_document" "allow_lambda_logging" {
+  # Allow CloudWatch logging
   statement {
     effect = "Allow"
     actions = [
@@ -55,6 +56,19 @@ data "aws_iam_policy_document" "allow_lambda_logging" {
 
     resources = [
       "arn:aws:logs:*:*:*",
+    ]
+  }
+
+  # Allow X-Ray tracing
+  statement {
+    effect = "Allow"
+    actions = [
+      "xray:PutTraceSegments",
+      "xray:PutTelemetryRecords"
+    ]
+
+    resources = [
+      "*",
     ]
   }
 }

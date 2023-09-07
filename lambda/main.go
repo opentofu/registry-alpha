@@ -11,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-xray-sdk-go/instrumentation/awsv2"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/google/go-github/v54/github"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
@@ -27,27 +29,48 @@ func main() {
 
 	ctx := context.Background()
 
-	secretsmanager, err := getSecretsManager(ctx)
+	config, err := buildConfig(ctx, githubTokenSecretName)
 	if err != nil {
 		panic(err)
 	}
 
-	githubAPIToken, err := getSecretValue(ctx, secretsmanager, githubTokenSecretName)
-	if err != nil {
-		panic(err)
+	lambda.Start(Router(*config))
+}
+
+func buildConfig(ctx context.Context, githubTokenSecretName string) (config *Config, err error) {
+	if err = xray.Configure(xray.Config{ServiceVersion: "1.2.3"}); err != nil {
+		err = fmt.Errorf("could not configure X-Ray: %w", err)
+		return
+	}
+
+	// At this point we're not part of a Lambda request execution, so let's
+	// explicitly create a segment to represent the configuration process.
+	ctx, segment := xray.BeginSegment(ctx, "registry.config")
+	defer func() { segment.Close(err) }()
+
+	var secretsmanager *secretsmanager.Client
+	if secretsmanager, err = getSecretsManager(ctx); err != nil {
+		err = fmt.Errorf("could not get secrets manager client: %w", err)
+		return
+	}
+
+	var githubAPIToken string
+	if githubAPIToken, err = getSecretValue(ctx, secretsmanager, githubTokenSecretName); err != nil {
+		err = fmt.Errorf("could not get GitHub API token: %w", err)
+		return
 	}
 
 	if githubAPIToken == "" {
-		panic("empty github api token fetched from secrets manager")
+		err = fmt.Errorf("empty GitHub API token fetched from secrets manager")
+		return
 	}
 
-	managedGithubClient := getManagedGithubClient(githubAPIToken)
-	rawGithubClient := getRawGithubv4Client(githubAPIToken)
+	config = &Config{
+		ManagedGithubClient: getManagedGithubClient(githubAPIToken),
+		RawGithubv4Client:   getRawGithubv4Client(githubAPIToken),
+	}
 
-	lambda.Start(Router(Config{
-		ManagedGithubClient: managedGithubClient,
-		RawGithubv4Client:   rawGithubClient,
-	}))
+	return
 }
 
 func getSecretsManager(ctx context.Context) (*secretsmanager.Client, error) {
@@ -55,6 +78,8 @@ func getSecretsManager(ctx context.Context) (*secretsmanager.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not load AWS configuration: %w", err)
 	}
+
+	awsv2.AWSV2Instrumentor(&awsConfig.APIOptions)
 
 	return secretsmanager.NewFromConfig(awsConfig), nil
 }
@@ -70,9 +95,9 @@ func getSecretValue(ctx context.Context, sm *secretsmanager.Client, secretName s
 }
 
 func getGithubOauth2Client(token string) *http.Client {
-	return oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
+	return xray.Client(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
-	))
+	)))
 }
 
 func getManagedGithubClient(token string) *github.Client {
