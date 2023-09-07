@@ -22,7 +22,7 @@ type DownloadHandlerPathParams struct {
 func downloadProviderVersion(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadPathParams(req)
-		effectiveNamespace := config.EffectiveNamespace(params.Namespace)
+		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 
 		// Construct the repo name.
 		repoName := providers.GetRepoName(params.Type)

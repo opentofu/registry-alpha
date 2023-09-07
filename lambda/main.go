@@ -28,9 +28,9 @@ func main() {
 		panic("GITHUB_TOKEN_SECRET_ASM_NAME environment variable not set")
 	}
 
-	redirects := make(map[string]string)
+	providerRedirects := make(map[string]string)
 	if redirectsJSON, ok := os.LookupEnv("PROVIDER_NAMESPACE_REDIRECTS"); ok {
-		if err := json.Unmarshal([]byte(redirectsJSON), &redirects); err != nil {
+		if err := json.Unmarshal([]byte(redirectsJSON), &providerRedirects); err != nil {
 			panic(fmt.Errorf("could not parse PROVIDER_NAMESPACE_REDIRECTS: %w", err))
 		}
 	}
@@ -42,7 +42,7 @@ func main() {
 		panic(err)
 	}
 
-	config.Redirects = redirects
+	config.ProviderRedirects = providerRedirects
 	lambda.Start(Router(*config))
 }
 

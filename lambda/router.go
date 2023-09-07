@@ -13,11 +13,14 @@ import (
 type Config struct {
 	ManagedGithubClient *github.Client
 	RawGithubv4Client   *githubv4.Client
-	Redirects           map[string]string
+	ProviderRedirects   map[string]string
 }
 
-func (c Config) EffectiveNamespace(namespace string) string {
-	if redirect, ok := c.Redirects[namespace]; ok {
+// EffectiveProviderNamespace will map namespaces for providers in situations
+// where the author (owner of the namespace) does not release artifacts as
+// GitHub Releases.
+func (c Config) EffectiveProviderNamespace(namespace string) string {
+	if redirect, ok := c.ProviderRedirects[namespace]; ok {
 		return redirect
 	}
 

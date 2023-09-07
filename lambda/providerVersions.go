@@ -29,7 +29,7 @@ type ListProviderVersionsResponse struct {
 func listProviderVersions(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListProvidersPathParams(req)
-		effectiveNamespace := config.EffectiveNamespace(params.Namespace)
+		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 
 		// Construct the repo name.
 		repoName := providers.GetRepoName(params.Type)
