@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/modules"
@@ -38,8 +37,7 @@ func listModuleVersions(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListModuleVersionsPathParams(req)
 
-		// the repo name should match the format `terraform-<system>-<name>`
-		repoName := fmt.Sprintf("terraform-%s-%s", params.System, params.Name)
+		repoName := modules.GetRepoName(params.System, params.Name)
 
 		// check the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)

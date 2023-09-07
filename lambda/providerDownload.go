@@ -22,7 +22,7 @@ func downloadProviderVersion(config Config) LambdaFunc {
 		params := getDownloadPathParams(req)
 
 		// Construct the repo name.
-		repoName := fmt.Sprintf("terraform-provider-%s", params.Type)
+		repoName := providers.GetRepoName(params.Type)
 
 		// check the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)

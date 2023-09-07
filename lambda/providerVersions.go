@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
@@ -30,7 +29,7 @@ func listProviderVersions(config Config) LambdaFunc {
 		params := getListProvidersPathParams(req)
 
 		// Construct the repo name.
-		repoName := fmt.Sprintf("terraform-provider-%s", params.Type)
+		repoName := providers.GetRepoName(params.Type)
 
 		// check the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
