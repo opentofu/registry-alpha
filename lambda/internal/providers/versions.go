@@ -145,9 +145,13 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		}
 		versionDetails.SHASum = shaSum
 
-		// TODO: Handle GPG keys.
+		publicKeys, keysErr := KeysForNamespace(namespace)
+		if keysErr != nil {
+			return fmt.Errorf("failed to get public keys: %w", keysErr)
+		}
+
 		versionDetails.SigningKeys = SigningKeys{
-			GPGPublicKeys: []GPGPublicKey{},
+			GPGPublicKeys: publicKeys,
 		}
 
 		return nil
