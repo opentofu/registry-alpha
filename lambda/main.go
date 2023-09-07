@@ -2,17 +2,18 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"os"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/google/go-github/v54/github"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
-	"log"
-	"net/http"
-	"os"
 )
 
 type LambdaFunc func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)
@@ -24,9 +25,14 @@ func main() {
 		panic("GITHUB_TOKEN_SECRET_ASM_NAME environment variable not set")
 	}
 
-	secretsmanager := getSecretsManager()
+	ctx := context.Background()
 
-	githubAPIToken, err := getSecretValue(secretsmanager, githubTokenSecretName)
+	secretsmanager, err := getSecretsManager(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	githubAPIToken, err := getSecretValue(ctx, secretsmanager, githubTokenSecretName)
 	if err != nil {
 		panic(err)
 	}
@@ -44,21 +50,17 @@ func main() {
 	}))
 }
 
-func getSecretsManager() *secretsmanager.SecretsManager {
-	awsSession, err := session.NewSession(&aws.Config{
-		Region:     aws.String(os.Getenv("AWS_REGION")),
-		MaxRetries: aws.Int(3),
-		HTTPClient: &http.Client{},
-	})
+func getSecretsManager(ctx context.Context) (*secretsmanager.Client, error) {
+	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("could not load AWS configuration: %w", err)
 	}
 
-	return secretsmanager.New(awsSession)
+	return secretsmanager.NewFromConfig(awsConfig), nil
 }
 
-func getSecretValue(sm *secretsmanager.SecretsManager, secretName string) (string, error) {
-	value, err := sm.GetSecretValue(&secretsmanager.GetSecretValueInput{
+func getSecretValue(ctx context.Context, sm *secretsmanager.Client, secretName string) (string, error) {
+	value, err := sm.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{
 		SecretId: aws.String(secretName),
 	})
 	if err != nil {

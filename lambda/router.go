@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"regexp"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/google/go-github/v54/github"
 	"github.com/shurcooL/githubv4"
-	"regexp"
 )
 
 type Config struct {
