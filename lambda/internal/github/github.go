@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"github.com/google/go-github/v54/github"
 	"github.com/shurcooL/githubv4"
 	"io"
 	"net/http"
@@ -46,6 +47,17 @@ type ReleaseAsset struct {
 	ID          string // The ID of the asset.
 	DownloadURL string // The URL to download the asset.
 	Name        string // The name of the asset.
+}
+
+func RepositoryExists(ctx context.Context, managedGhClient *github.Client, namespace, name string) (bool, error) {
+	_, response, err := managedGhClient.Repositories.Get(ctx, namespace, name)
+	if err != nil {
+		if response.StatusCode == http.StatusNotFound {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get repository: %v", err)
+	}
+	return true, nil
 }
 
 func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name, versionNumber string) (*GHRelease, error) {

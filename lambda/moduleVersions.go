@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/modules"
 )
 
@@ -36,9 +37,20 @@ func listModuleVersions(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListModuleVersionsPathParams(req)
 
-		versions, err := modules.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, params.Name, params.System)
+		repoName := modules.GetRepoName(params.System, params.Name)
+
+		// check the repo exists
+		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
 		if err != nil {
-			// TODO: handle missing repo
+			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		}
+		if !exists {
+			return NotFoundResponse, nil
+		}
+
+		// fetch all the versions
+		versions, err := modules.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, repoName)
+		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: 500}, err
 		}
 

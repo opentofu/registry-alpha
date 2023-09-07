@@ -2,7 +2,6 @@ package modules
 
 import (
 	"context"
-	"fmt"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/shurcooL/githubv4"
 
@@ -10,11 +9,8 @@ import (
 )
 
 // TODO: doc
-func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, system string) ([]Version, error) {
-	// the repo name should match the format `terraform-<system>-<name>`
-	repoName := fmt.Sprintf("terraform-%s-%s", system, name)
-
-	releases, err := github.FetchReleases(ctx, ghClient, namespace, repoName)
+func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) ([]Version, error) {
+	releases, err := github.FetchReleases(ctx, ghClient, namespace, name)
 	if err != nil {
 		return nil, err
 	}
@@ -35,12 +31,4 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		versions = append(versions, version)
 	}
 	return versions, nil
-}
-
-func GetVersionDownloadUrl(_ context.Context, namespace string, name string, system string, version string) string {
-	// the repo name should match the format `terraform-<system>-<name>`
-	repoName := fmt.Sprintf("terraform-%s-%s", system, name)
-
-	// nothing fancy, just return the url for the release
-	return fmt.Sprintf("git::https://github.com/%s/%s?ref=v%s", namespace, repoName, version)
 }
