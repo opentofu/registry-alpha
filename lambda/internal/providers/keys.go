@@ -51,9 +51,7 @@ func KeysForNamespace(namespace string) ([]GPGPublicKey, error) {
 
 // NamespacesWithKeys returns the namespaces that have keys.
 func NamespacesWithKeys() ([]string, error) {
-	k := keys
-
-	entries, err := k.ReadDir("keys")
+	entries, err := keys.ReadDir("keys")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read key directory: %w", err)
 	}
