@@ -143,5 +143,3 @@ This project is licensed under the terms of the [LICENSE](LICENSE) file.
 
 For any additional queries or issues, please open a new issue in the repository.
 ```
-
-Please let me know if any additional changes are needed!

@@ -2,6 +2,7 @@ package providers
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,37 +17,36 @@ var keys embed.FS
 
 // KeysForNamespace returns the GPG public keys for the given namespace.
 func KeysForNamespace(namespace string) ([]GPGPublicKey, error) {
-	k := keys
-
 	dirName := filepath.Join("keys", namespace)
 
-	entries, err := k.ReadDir(dirName)
+	entries, err := keys.ReadDir(dirName)
 
-	// This is fine, it just means that the namespace doesn't have any keys yet.
-	if os.IsNotExist(err) {
-		return []GPGPublicKey{}, nil
-	}
-
-	// This is not fine, it means that we failed to read the directory for some
-	// other reason.
 	if err != nil {
+		// This is fine, it just means that the namespace doesn't have any keys yet.
+		if os.IsNotExist(err) {
+			return []GPGPublicKey{}, nil
+		}
+
+		// This is not fine, it means that we failed to read the directory for some
+		// other reason.
 		return nil, fmt.Errorf("failed to read key directory: %w", err)
 	}
 
-	var publicKeys []GPGPublicKey
+	publicKeys := make([]GPGPublicKey, 0, len(entries))
+	var buildErrors []error
 
 	for _, entry := range entries {
 		path := filepath.Join(dirName, entry.Name())
 
 		publicKey, err := buildKey(path)
 		if err != nil {
-			return nil, fmt.Errorf("could not build public key at %s: %w", path, err)
+			buildErrors = append(buildErrors, fmt.Errorf("could not build public key at %s: %w", path, err))
+		} else {
+			publicKeys = append(publicKeys, *publicKey)
 		}
-
-		publicKeys = append(publicKeys, *publicKey)
 	}
 
-	return publicKeys, nil
+	return publicKeys, errors.Join(buildErrors...)
 }
 
 // NamespacesWithKeys returns the namespaces that have keys.
