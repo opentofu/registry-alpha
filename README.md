@@ -2,10 +2,12 @@
 
 A simple golang lambda and supporting terraform to act as a simple, stateless registry that sits on top of github repositories.
 
-## Table of contents
+## Table of Contents
 
 - [Table of Contents](#table-of-contents)
 - [Registering public keys](#registering-public-keys)
+  - [Adding a public key](#adding-a-public-key)
+  - [Removing a public key](#removing-a-public-key)
 - [Contributing to the project](#contributing-to-the-project)
   - [Requirements](#requirements)
   - [Setup](#setup)
