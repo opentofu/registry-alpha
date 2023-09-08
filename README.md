@@ -1,11 +1,13 @@
 # Registry
 
-A simple golang lambda and supporting terraform to act as a simple, stateless registry that sits on top of github repositories.
+A simple Golang AWS Lambda and supporting infrastructure definitions to act as a simple, stateless registry that sits on top of github repositories.
 
-## Table of contents
+## Table of Contents
 
 - [Table of Contents](#table-of-contents)
 - [Registering public keys](#registering-public-keys)
+  - [Adding a public key](#adding-a-public-key)
+  - [Removing a public key](#removing-a-public-key)
 - [Contributing to the project](#contributing-to-the-project)
   - [Requirements](#requirements)
   - [Setup](#setup)
@@ -118,19 +120,7 @@ After successfully applying the Terraform configuration, you will receive an out
 
 To complete the setup, you need to configure a subdomain to use these four nameservers. Update your domain provider's DNS settings to point the subdomain to these nameservers.
 
-Here's an example of what the Terraform output might look like:
-
-```text
-Nameservers:
-- ns-xxx.awsdns-xx.net.
-- ns-xxx.awsdns-xx.org.
-- ns-xxx.awsdns-xx.co.uk.
-- ns-xxx.awsdns-xx.com.
-```
-
 Ensure that you update the DNS settings in your domain provider's dashboard to use these nameservers for the relevant subdomain.
-
-Certainly! Here's a section that briefly describes how to consume these routes using `curl`:
 
 ### API Routes and Curl Usage
 
