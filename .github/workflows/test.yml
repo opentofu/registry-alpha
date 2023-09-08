@@ -1,0 +1,28 @@
+name: Test
+
+on: [push]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lambda
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with: { go-version: '1.21' }
+
+      - name: Check formatting using gofmt
+        run: gofmt -s -l -d .
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run unit tests
+        run: go test ./...
