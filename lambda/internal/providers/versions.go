@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentffoundation/registry/internal/github"
@@ -30,34 +31,55 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 			return fmt.Errorf("failed to fetch releases: %w", releasesErr)
 		}
 
+		// Setup Go Routine helpers
+		versionCh := make(chan Version, len(releases))
+
+		var wg sync.WaitGroup
+
 		for _, release := range releases {
-			assets := release.ReleaseAssets.Nodes
+			wg.Add(1)
+			go func(release github.GHRelease) {
+				defer wg.Done()
+				assets := release.ReleaseAssets.Nodes
 
-			// Extract supported platforms from the release assets.
-			platforms, platformsErr := getSupportedArchAndOS(assets)
-			if platformsErr != nil {
-				return fmt.Errorf("failed to get supported platforms: %w", platformsErr)
-			}
+				// Extract supported platforms from the release assets.
+				platforms, platformsErr := getSupportedArchAndOS(assets)
+				if platformsErr != nil {
+					fmt.Errorf("failed to get supported platforms: %w", platformsErr)
+					return
+				}
 
-			// Find and parse the manifest associated with the assets.
-			manifest, manifestErr := findAndParseManifest(tracedCtx, assets)
-			if manifestErr != nil {
-				return fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
-			}
+				// Find and parse the manifest associated with the assets.
+				manifest, manifestErr := findAndParseManifest(tracedCtx, assets)
+				if manifestErr != nil {
+					fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
+					return
+				}
 
-			// Construct the Version struct.
-			version := Version{
-				// Normalize the version name.
-				Version:   strings.TrimPrefix(release.TagName, "v"),
-				Platforms: platforms,
-			}
+				// Construct the Version struct.
+				version := Version{
+					// Normalize the version name.
+					Version:   strings.TrimPrefix(release.TagName, "v"),
+					Platforms: platforms,
+				}
 
-			if manifest != nil {
-				version.Protocols = manifest.Metadata.ProtocolVersions
-			} else {
-				version.Protocols = []string{"5.0"}
-			}
+				if manifest != nil {
+					version.Protocols = manifest.Metadata.ProtocolVersions
+				} else {
+					version.Protocols = []string{"5.0"}
+				}
 
+				versionCh <- version
+			}(release)
+		}
+
+		// Close the results channel when all goroutines are done.
+		go func() {
+			wg.Wait()
+			close(versionCh)
+		}()
+
+		for version := range versionCh {
 			versions = append(versions, version)
 		}
 
