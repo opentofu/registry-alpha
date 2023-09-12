@@ -71,8 +71,7 @@ func Router(config Config) LambdaFunc {
 		}
 
 		response, err := handler(ctx, req)
-
-		defer func() { segment.Close(err) }()
+		segment.Close(err)
 
 		return response, err
 	}
