@@ -36,7 +36,7 @@ func downloadProviderVersion(config Config) LambdaFunc {
 			return NotFoundResponse, nil
 		}
 
-		versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, params.Type, params.Version, params.OS, params.Architecture)
+		versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, repoName, params.Version, params.OS, params.Architecture)
 		if err != nil {
 			// log the error too for dev
 			fmt.Printf("error fetching version: %s\n", err)
