@@ -43,6 +43,7 @@ func main() {
 	}
 
 	config.ProviderRedirects = providerRedirects
+
 	lambda.Start(Router(*config))
 }
 
