@@ -31,6 +31,10 @@ resource "aws_lambda_function" "function" {
 
   runtime = "go1.x"
 
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = {
       GITHUB_TOKEN_SECRET_ASM_NAME = aws_secretsmanager_secret.github_api_token.name
