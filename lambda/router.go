@@ -67,7 +67,6 @@ func Router(config Config) LambdaFunc {
 		ctx, segment := xray.BeginSubsegment(ctx, "registry.handle")
 		handler := getRouteHandler(config, req.Path)
 		if handler == nil {
-			xray.AddError(ctx, fmt.Errorf("no route handler found for path %s", req.Path))
 			return events.APIGatewayProxyResponse{StatusCode: 404, Body: fmt.Sprintf("No route handler found for path %s", req.Path)}, nil
 		}
 
