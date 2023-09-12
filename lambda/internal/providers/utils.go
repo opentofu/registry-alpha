@@ -16,7 +16,7 @@ func getShaSum(ctx context.Context, downloadURL string, filename string) (shaSum
 		xray.AddAnnotation(tracedCtx, "filename", filename)
 
 		assetContents, assetErr := github.DownloadAssetContents(tracedCtx, downloadURL)
-		if assetContents != nil {
+		if assetErr != nil {
 			return fmt.Errorf("failed to download asset contents: %w", assetErr)
 		}
 
