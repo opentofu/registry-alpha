@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"regexp"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -63,11 +64,15 @@ func getRouteHandler(config Config, path string) LambdaFunc {
 
 func Router(config Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+		ctx, segment := xray.BeginSubsegment(ctx, "registry.handle")
 		handler := getRouteHandler(config, req.Path)
 		if handler == nil {
 			return events.APIGatewayProxyResponse{StatusCode: 404, Body: fmt.Sprintf("No route handler found for path %s", req.Path)}, nil
 		}
 
-		return handler(ctx, req)
+		response, err := handler(ctx, req)
+		segment.Close(err)
+
+		return response, err
 	}
 }
