@@ -18,10 +18,15 @@ import (
 // - ctx: The context used to control cancellations and timeouts.
 // - ghClient: The GitHub GraphQL client to interact with the GitHub GraphQL API.
 // - namespace: The GitHub namespace (typically, the organization or user) under which the provider repository is hosted.
-// - name: The name of the provider without the "terraform-provider-" prefix.
+// - name: The name of the provider repository.
 //
 // Returns a slice of Version structures detailing each available version. If an error occurs during fetching or processing, it returns an error.
 func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []Version, err error) {
+	type versionResult struct {
+		Version Version
+		Err     error
+	}
+
 	err = xray.Capture(ctx, "provider.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
@@ -31,56 +36,60 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 			return fmt.Errorf("failed to fetch releases: %w", releasesErr)
 		}
 
-		// Setup Go Routine helpers
-		versionCh := make(chan Version, len(releases))
+		versionCh := make(chan versionResult, len(releases))
 
 		var wg sync.WaitGroup
 
 		for _, release := range releases {
 			wg.Add(1)
-			go func(release github.GHRelease) {
+			go func(r github.GHRelease) {
 				defer wg.Done()
-				assets := release.ReleaseAssets.Nodes
+				result := versionResult{}
 
-				// Extract supported platforms from the release assets.
+				assets := r.ReleaseAssets.Nodes
 				platforms, platformsErr := getSupportedArchAndOS(assets)
 				if platformsErr != nil {
-					fmt.Errorf("failed to get supported platforms: %w", platformsErr)
+					result.Err = fmt.Errorf("failed to get supported platforms: %w", platformsErr)
+					versionCh <- result
 					return
 				}
 
-				// Find and parse the manifest associated with the assets.
 				manifest, manifestErr := findAndParseManifest(tracedCtx, assets)
 				if manifestErr != nil {
-					fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
+					result.Err = fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
+					versionCh <- result
 					return
 				}
 
-				// Construct the Version struct.
-				version := Version{
-					// Normalize the version name.
-					Version:   strings.TrimPrefix(release.TagName, "v"),
+				result.Version = Version{
+					Version:   strings.TrimPrefix(r.TagName, "v"),
 					Platforms: platforms,
 				}
 
 				if manifest != nil {
-					version.Protocols = manifest.Metadata.ProtocolVersions
+					result.Version.Protocols = manifest.Metadata.ProtocolVersions
 				} else {
-					version.Protocols = []string{"5.0"}
+					result.Version.Protocols = []string{"5.0"}
 				}
 
-				versionCh <- version
+				versionCh <- result
 			}(release)
 		}
 
-		// Close the results channel when all goroutines are done.
+		// Close the channel when all goroutines are done.
 		go func() {
 			wg.Wait()
 			close(versionCh)
 		}()
 
-		for version := range versionCh {
-			versions = append(versions, version)
+		for vr := range versionCh {
+			if vr.Err != nil {
+				// we dont want to fail the entire operation if one version fails, just trace the error and continue
+				xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
+			}
+			if vr.Version.Version != "" {
+				versions = append(versions, vr.Version)
+			}
 		}
 
 		return nil
