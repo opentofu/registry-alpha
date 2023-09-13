@@ -76,6 +76,10 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 			}(release)
 		}
 
+		// Close the channel when all goroutines are done.
+		wg.Wait()
+		close(versionCh)
+
 		for vr := range versionCh {
 			if vr.Err != nil {
 				// we dont want to fail the entire operation if one version fails, just trace the error and continue
