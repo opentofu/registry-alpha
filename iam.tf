@@ -26,7 +26,7 @@ data "aws_iam_policy_document" "github_api_token_secrets_iam_policy" {
 }
 
 resource "aws_iam_policy" "lambda_secrets_policy" {
-  name        = "RegistryLambdaSecretsPolicy"
+  name        = "${var.domain_name}-RegistryLambdaSecretsPolicy"
   description = "Policy for lambda to pull its secrets"
   policy      = data.aws_iam_policy_document.github_api_token_secrets_iam_policy.json
 }
@@ -37,7 +37,7 @@ resource "aws_iam_role_policy_attachment" "lambda_secrets_policy_attachment" {
 }
 
 resource "aws_iam_role" "lambda" {
-  name               = "RegistryLambdaRole"
+  name               = "${var.domain_name}-RegistryLambdaRole"
   description        = "Role for the registry to assume lambda"
   assume_role_policy = data.aws_iam_policy_document.assume_lambda_role.json
 }
@@ -74,7 +74,7 @@ data "aws_iam_policy_document" "allow_lambda_logging" {
 }
 
 resource "aws_iam_policy" "function_logging_policy" {
-  name        = "RegistryLambdaCWLoggingPolicy"
+  name        = "${var.domain_name}-RegistryLambdaCWLoggingPolicy"
   description = "Policy for the registry lambda to use cloudwatch logging"
   policy      = data.aws_iam_policy_document.allow_lambda_logging.json
 }
