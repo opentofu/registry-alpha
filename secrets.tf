@@ -1,5 +1,5 @@
 resource "aws_secretsmanager_secret" "github_api_token" {
-  name = "${domain_name}-github_api_token"
+  name = "${var.domain_name}-github_api_token"
 }
 
 resource "aws_secretsmanager_secret_version" "github_api_token" {
