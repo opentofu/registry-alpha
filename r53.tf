@@ -5,8 +5,8 @@ resource "aws_acm_certificate" "api" {
   validation_method = "DNS"
 }
 
-resource "aws_route53_zone" "public" {
-  name         = var.route53_zone_name
+data "aws_route53_zone" "public" {
+  zone_id     = var.route53_zone_id
 }
 
 resource "aws_route53_record" "api_validation" {
@@ -23,7 +23,7 @@ resource "aws_route53_record" "api_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = aws_route53_zone.public.zone_id
+  zone_id         = data.aws_route53_zone.public.zone_id
 }
 
 resource "aws_acm_certificate_validation" "api" {
@@ -36,7 +36,7 @@ resource "aws_acm_certificate_validation" "api" {
 resource "aws_route53_record" "api" {
   name    = aws_api_gateway_domain_name.domain.domain_name
   type    = "A"
-  zone_id = aws_route53_zone.public.zone_id
+  zone_id = data.aws_route53_zone.public.zone_id
 
   alias {
     name                   = aws_api_gateway_domain_name.domain.cloudfront_domain_name
@@ -46,6 +46,6 @@ resource "aws_route53_record" "api" {
 }
 
 output "nameservers" {
-  value = aws_route53_zone.public.name_servers
+  value = data.aws_route53_zone.public.name_servers
   description = "The name servers for the hosted zone."
 }
