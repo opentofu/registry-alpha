@@ -7,7 +7,7 @@ variable "github_api_token" {
     sensitive = true
 }
 
-variable "route53_zone_name" {
+variable "route53_zone_id" {
     type = string
 }
 
