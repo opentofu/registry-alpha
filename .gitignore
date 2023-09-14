@@ -36,3 +36,6 @@ terraform.rc
 # Build artifacts
 archive.zip
 registry-handler
+
+# JetBrains folder
+.idea
