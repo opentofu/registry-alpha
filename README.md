@@ -75,7 +75,7 @@ Before deploying the infrastructure, ensure you've set the required Terraform va
 
 - **`github_api_token`**: Personal Access Token (PAT) from GitHub, required for interactions with the GitHub API. [Create a GitHub PAT](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token) if you don't have one, it should have `public_repo, read:packages` access
 
-- **`route53_zone_id`**: The ID of the Route 53 hosted zone, e.g., "Z008B5091482A026MN9AUQ"
+- **`route53_zone_id`**: a Route 53 hosted zone pre-configured with NS records pointing to a valid registered domain, e.g., "Z008B5091482A026MN9AUQ"
 
 - **`domain_name`**: The domain name you wish to manage. This should match or be a subdomain of the `route53_zone_name`.
 
