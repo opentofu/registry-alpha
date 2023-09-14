@@ -42,6 +42,12 @@ resource "aws_lambda_function" "function" {
   }
 }
 
+resource "aws_lambda_provisioned_concurrency_config" "function" {
+  function_name = aws_lambda_function.function.function_name
+  qualifier     = "$LATEST"
+  provisioned_concurrent_executions = 1
+}
+
 resource "aws_lambda_permission" "apigw" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
