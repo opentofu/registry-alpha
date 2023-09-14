@@ -19,7 +19,7 @@ data "archive_file" "function_archive" {
 
 // create the lambda function from zip file
 resource "aws_lambda_function" "function" {
-  function_name = "registry-handler"
+  function_name = "${replace(var.domain_name, ".", "-")}-registry-handler"
   description   = "A basic lambda to handle registry events"
   role          = aws_iam_role.lambda.arn
   handler       = local.binary_name
