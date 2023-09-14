@@ -74,7 +74,7 @@ data "aws_iam_policy_document" "allow_lambda_logging" {
 }
 
 resource "aws_iam_policy" "function_logging_policy" {
-  name        = "RegistryLambdaCWLoggingPolicy"
+  name        = "${var.domain_name}-RegistryLambdaCWLoggingPolicy"
   description = "Policy for the registry lambda to use cloudwatch logging"
   policy      = data.aws_iam_policy_document.allow_lambda_logging.json
 }
