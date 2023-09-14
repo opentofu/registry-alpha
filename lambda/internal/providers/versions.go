@@ -54,6 +54,13 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 					return
 				}
 
+				// if there are no platforms, we can't do anything with this release
+				// so, we should just skip
+
+				if len(platforms) == 0 {
+					return
+				}
+
 				manifest, manifestErr := findAndParseManifest(tracedCtx, assets)
 				if manifestErr != nil {
 					result.Err = fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
@@ -82,7 +89,7 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 
 		for vr := range versionCh {
 			if vr.Err != nil {
-				// we dont want to fail the entire operation if one version fails, just trace the error and continue
+				// we don't want to fail the entire operation if one version fails, just trace the error and continue
 				xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
 			}
 			if vr.Version.Version != "" {
