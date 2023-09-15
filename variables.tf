@@ -14,3 +14,10 @@ variable "route53_zone_id" {
 variable "domain_name" {
     type = string
 }
+
+variable "provider_namespace_redirects" {
+    type = map
+    default = {
+        "hashicorp" : "opentffoundation"
+    }
+}
