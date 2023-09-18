@@ -7,15 +7,7 @@ import (
 	"regexp"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/google/go-github/v54/github"
-	"github.com/shurcooL/githubv4"
 )
-
-type Config struct {
-	ManagedGithubClient *github.Client
-	RawGithubv4Client   *githubv4.Client
-	ProviderRedirects   map[string]string
-}
 
 // EffectiveProviderNamespace will map namespaces for providers in situations
 // where the author (owner of the namespace) does not release artifacts as
