@@ -38,6 +38,7 @@ resource "aws_lambda_function" "function" {
   environment {
     variables = {
       GITHUB_TOKEN_SECRET_ASM_NAME = aws_secretsmanager_secret.github_api_token.name
+      PROVIDER_NAMESPACE_REDIRECTS = jsonencode(var.provider_namespace_redirects)
     }
   }
 }
