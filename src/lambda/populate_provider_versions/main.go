@@ -4,14 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
-	"os"
 	"time"
 )
 
@@ -44,42 +39,6 @@ func main() {
 	}
 
 	lambda.Start(HandleRequest(config))
-}
-
-func StoreProviderListingInDynamo(providerNamespace string, providerType string, versions []providers.Version) error {
-	provider := fmt.Sprintf("%s/%s", providerNamespace, providerType)
-	// Create Session
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_REGION"))},
-	)
-
-	ddbClient := dynamodb.New(sess)
-
-	item := ProviderVersionListingItem{
-		Provider:    provider,
-		Versions:    versions,
-		LastUpdated: time.Now(),
-	}
-
-	marshalledItem, err := dynamodbattribute.MarshalMap(item)
-	if err != nil {
-		return fmt.Errorf("Got error marshalling dynamodb item: %w", err)
-	}
-
-	// Create item in table Movies
-	tableName := "provider-versions"
-
-	input := &dynamodb.PutItemInput{
-		Item:      marshalledItem,
-		TableName: aws.String(tableName),
-	}
-
-	_, err = ddbClient.PutItem(input)
-	if err != nil {
-		return fmt.Errorf("got error calling PutItem: %w", err)
-	}
-
-	return nil
 }
 
 func HandleRequest(config *Config) func(ctx context.Context, e PopulateProviderVersionsEvent) (string, error) {
@@ -126,9 +85,9 @@ func HandleRequest(config *Config) func(ctx context.Context, e PopulateProviderV
 			return "", err
 		}
 
-		err = StoreProviderListingInDynamo(e.Namespace, e.Type, versions)
+		err = storeProviderListingInDynamo(e.Namespace, e.Type, versions)
 		if err != nil {
-			return "", fmt.Errorf("failed to cache provider listing: %w", err)
+			return "", fmt.Errorf("failed to store provider listing: %w", err)
 		}
 
 		return "", nil
