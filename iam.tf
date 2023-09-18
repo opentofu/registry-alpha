@@ -83,3 +83,35 @@ resource "aws_iam_role_policy_attachment" "lambda_logging_policy_attachment" {
   role       = aws_iam_role.lambda.id
   policy_arn = aws_iam_policy.function_logging_policy.arn
 }
+
+data "aws_iam_policy_document" "dynamodb_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:DescribeTable",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+      "dynamodb:GetItem",
+      "dynamodb:BatchGetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:BatchWriteItem"
+    ]
+
+    resources = [
+      aws_dynamodb_table.provider_versions.arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "lambda_dynamo_policy" {
+  name        = "${var.domain_name}-RegistryLambdaDynamoPolicy"
+  description = "Policy for lambda to Read and Write to the provider versions DynamoDB table"
+  policy      = data.aws_iam_policy_document.dynamodb_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_dynamo_policy_attachment" {
+  role       = aws_iam_role.lambda.id
+  policy_arn = aws_iam_policy.lambda_dynamo_policy.arn
+}
