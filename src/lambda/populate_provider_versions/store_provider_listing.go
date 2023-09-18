@@ -13,6 +13,9 @@ import (
 
 func storeProviderListingInDynamo(providerNamespace string, providerType string, versions []providers.Version) error {
 	tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
+	if tableName == "" {
+		panic(fmt.Errorf("missing environment variable PROVIDER_VERSIONS_TABLE_NAME"))
+	}
 	provider := fmt.Sprintf("%s/%s", providerNamespace, providerType)
 
 	// Create AWS Session
