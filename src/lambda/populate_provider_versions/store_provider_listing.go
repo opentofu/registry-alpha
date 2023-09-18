@@ -12,7 +12,7 @@ import (
 )
 
 func storeProviderListingInDynamo(providerNamespace string, providerType string, versions []providers.Version) error {
-	tableName := os.Getenv("DYNAMO_TABLE_NAME")
+	tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
 	provider := fmt.Sprintf("%s/%s", providerNamespace, providerType)
 
 	// Create AWS Session
