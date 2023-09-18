@@ -1,7 +1,7 @@
-resource "null_resource" "function_binary" {
+resource "null_resource" "api_function_binary" {
   provisioner "local-exec" {
-    command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -ldflags='-s -w' -o ../${local.binary_name}"
-    working_dir = "./lambda"
+    command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -ldflags='-s -w' -o ../${local.binary_name} ./lambda/api"
+    working_dir = "./src"
   }
 
   triggers = {
@@ -9,8 +9,8 @@ resource "null_resource" "function_binary" {
   }
 }
 
-data "archive_file" "function_archive" {
-  depends_on = [null_resource.function_binary]
+data "archive_file" "api_function_archive" {
+  depends_on = [null_resource.api_function_binary]
 
   type        = "zip"
   source_file = local.binary_name
@@ -18,16 +18,16 @@ data "archive_file" "function_archive" {
 }
 
 // create the lambda function from zip file
-resource "aws_lambda_function" "function" {
+resource "aws_lambda_function" "api_function" {
   function_name = "${replace(var.domain_name, ".", "-")}-registry-handler"
-  description   = "A basic lambda to handle registry events"
+  description   = "A basic lambda to handle registry api events"
   role          = aws_iam_role.lambda.arn
   handler       = local.binary_name
   memory_size   = 128
   timeout       = 60
 
   filename         = local.archive_path
-  source_code_hash = data.archive_file.function_archive.output_base64sha256
+  source_code_hash = data.archive_file.api_function_archive.output_base64sha256
 
   runtime = "go1.x"
 
@@ -43,10 +43,10 @@ resource "aws_lambda_function" "function" {
   }
 }
 
-resource "aws_lambda_permission" "apigw" {
+resource "aws_lambda_permission" "api_gateway_invoke_lambda_permission" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = "${aws_lambda_function.function.function_name}"
+  function_name = "${aws_lambda_function.api_function.function_name}"
   principal     = "apigateway.amazonaws.com"
 
   # The /*/* portion grants access from any method on any resource
@@ -55,6 +55,6 @@ resource "aws_lambda_permission" "apigw" {
 }
 
 resource "aws_cloudwatch_log_group" "log_group" {
-  name              = "/aws/lambda/${aws_lambda_function.function.function_name}"
+  name              = "/aws/lambda/${aws_lambda_function.api_function.function_name}"
   retention_in_days = 7
 }
