@@ -133,7 +133,7 @@ resource "aws_api_gateway_integration" "provider_download_integration" {
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.function.invoke_arn
+  uri                     = aws_lambda_function.api_function.invoke_arn
 
   cache_key_parameters = [
     "method.request.path.namespace",
@@ -163,7 +163,7 @@ resource "aws_api_gateway_integration" "provider_list_versions_integration" {
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.function.invoke_arn
+  uri                     = aws_lambda_function.api_function.invoke_arn
 
   cache_key_parameters = [
     "method.request.path.namespace",
@@ -192,7 +192,7 @@ resource "aws_api_gateway_integration" "module_download_integration" {
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.function.invoke_arn
+  uri                     = aws_lambda_function.api_function.invoke_arn
 
   cache_key_parameters = [
     "method.request.path.namespace",
@@ -222,7 +222,7 @@ resource "aws_api_gateway_integration" "module_list_versions_integration" {
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.function.invoke_arn
+  uri                     = aws_lambda_function.api_function.invoke_arn
 
   cache_key_parameters = [
     "method.request.path.namespace",
@@ -245,7 +245,7 @@ resource "aws_api_gateway_integration" "metadata_integration" {
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.function.invoke_arn
+  uri                     = aws_lambda_function.api_function.invoke_arn
 }
 
 resource "aws_api_gateway_deployment" "deployment" {
