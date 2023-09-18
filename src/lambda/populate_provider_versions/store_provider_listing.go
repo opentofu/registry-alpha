@@ -11,9 +11,8 @@ import (
 	"time"
 )
 
-const tableName = "provider-versions"
-
 func storeProviderListingInDynamo(providerNamespace string, providerType string, versions []providers.Version) error {
+	tableName := os.Getenv("DYNAMO_TABLE_NAME")
 	provider := fmt.Sprintf("%s/%s", providerNamespace, providerType)
 
 	// Create AWS Session

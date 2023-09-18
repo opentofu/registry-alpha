@@ -82,6 +82,7 @@ resource "aws_lambda_function" "populate_provider_versions_function" {
 
   environment {
     variables = {
+      DYNAMO_TABLE_NAME = aws_dynamodb_table.provider_versions.name
       GITHUB_TOKEN_SECRET_ASM_NAME = aws_secretsmanager_secret.github_api_token.name
     }
   }
