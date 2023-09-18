@@ -6,12 +6,12 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-type MyEvent struct {
+type PopulateProviderVersionsEvent struct {
 	Namespace string `json:"name"`
 	Type      string `json:"type"`
 }
 
-func HandleRequest(_ context.Context, name MyEvent) (string, error) {
+func HandleRequest(_ context.Context, name PopulateProviderVersionsEvent) (string, error) {
 	return fmt.Sprintf("Fetching %s/%s", name.Namespace, name.Type), nil
 }
 
