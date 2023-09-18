@@ -16,7 +16,7 @@ jobs:
       
       - name: Install Go
         uses: actions/setup-go@v4
-        with: { go-version-file: 'lambda/go.mod' }
+        with: { go-version-file: 'src/go.mod' }
 
       - name: Check formatting using gofmt
         run: gofmt -s -l -d .
