@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"github.com/opentffoundation/registry/internal/github"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -14,9 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-xray-sdk-go/instrumentation/awsv2"
 	"github.com/aws/aws-xray-sdk-go/xray"
-	"github.com/google/go-github/v54/github"
-	"github.com/shurcooL/githubv4"
-	"golang.org/x/oauth2"
 )
 
 type LambdaFunc func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)
@@ -76,8 +73,8 @@ func buildConfig(ctx context.Context, githubTokenSecretName string) (config *Con
 	}
 
 	config = &Config{
-		ManagedGithubClient: getManagedGithubClient(githubAPIToken),
-		RawGithubv4Client:   getRawGithubv4Client(githubAPIToken),
+		ManagedGithubClient: github.NewManagedGithubClient(githubAPIToken),
+		RawGithubv4Client:   github.NewRawGithubv4Client(githubAPIToken),
 	}
 
 	return
@@ -102,18 +99,4 @@ func getSecretValue(ctx context.Context, sm *secretsmanager.Client, secretName s
 		return "", err
 	}
 	return *value.SecretString, nil
-}
-
-func getGithubOauth2Client(token string) *http.Client {
-	return xray.Client(oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)))
-}
-
-func getManagedGithubClient(token string) *github.Client {
-	return github.NewClient(getGithubOauth2Client(token))
-}
-
-func getRawGithubv4Client(token string) *githubv4.Client {
-	return githubv4.NewClient(getGithubOauth2Client(token))
 }
