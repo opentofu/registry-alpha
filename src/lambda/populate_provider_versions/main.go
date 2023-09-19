@@ -7,18 +7,12 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
-	"time"
+	"github.com/opentffoundation/registry/internal/providers/versions_cache"
 )
 
 type PopulateProviderVersionsEvent struct {
 	Namespace string `json:"namespace"`
 	Type      string `json:"type"`
-}
-
-type ProviderVersionListingItem struct {
-	Provider    string              `json:"provider"`
-	Versions    []providers.Version `json:"versions"`
-	LastUpdated time.Time           `json:"last_updated"`
 }
 
 func (p PopulateProviderVersionsEvent) Validate() error {
@@ -85,7 +79,7 @@ func HandleRequest(config *Config) func(ctx context.Context, e PopulateProviderV
 			return "", err
 		}
 
-		err = storeProviderListingInDynamo(e.Namespace, e.Type, versions)
+		err = versions_cache.StoreProviderListingInDynamo(e.Namespace, e.Type, versions)
 		if err != nil {
 			return "", fmt.Errorf("failed to store provider listing: %w", err)
 		}

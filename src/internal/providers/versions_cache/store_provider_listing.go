@@ -1,4 +1,4 @@
-package main
+package versions_cache
 
 import (
 	"fmt"
@@ -11,11 +11,18 @@ import (
 	"time"
 )
 
-func storeProviderListingInDynamo(providerNamespace string, providerType string, versions []providers.Version) error {
+type ProviderVersionListingItem struct {
+	Provider    string              `json:"provider"`
+	Versions    []providers.Version `json:"versions"`
+	LastUpdated time.Time           `json:"last_updated"`
+}
+
+func StoreProviderListingInDynamo(providerNamespace string, providerType string, versions []providers.Version) error {
 	tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
 	if tableName == "" {
 		panic(fmt.Errorf("missing environment variable PROVIDER_VERSIONS_TABLE_NAME"))
 	}
+
 	provider := fmt.Sprintf("%s/%s", providerNamespace, providerType)
 
 	// Create AWS Session
