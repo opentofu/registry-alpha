@@ -15,7 +15,10 @@ import (
 	"github.com/opentffoundation/registry/internal/providers"
 	"github.com/opentffoundation/registry/internal/providers/versions_cache"
 	"os"
+	"time"
 )
+
+const providerCacheAge = 1 * time.Hour
 
 type ListProvidersPathParams struct {
 	Namespace string `json:"namespace"`
@@ -31,6 +34,20 @@ func getListProvidersPathParams(req events.APIGatewayProxyRequest) ListProviders
 
 type ListProviderVersionsResponse struct {
 	Versions []providers.Version `json:"versions"`
+}
+
+func asyncPopulateProviderVersions(cfg aws.Config, ctx context.Context, providerNamespace string, providerType string) error {
+	lambdaClient := lambda.NewFromConfig(cfg)
+
+	fmt.Printf("Invoking populate provider versions lambda asynchronously to update dynamodb document\n")
+	// invoke the async lambda to update the dynamodb document
+	_, err := lambdaClient.Invoke(ctx, &lambda.InvokeInput{
+		FunctionName:   aws.String(os.Getenv("POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME")),
+		InvocationType: "Event", // Event == async
+		Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"type\": \"%s\"}", providerNamespace, providerType)),
+	})
+
+	return err
 }
 
 func listProviderVersions(config Config) LambdaFunc {
@@ -71,24 +88,30 @@ func listProviderVersions(config Config) LambdaFunc {
 			fmt.Printf("Error fetching document from dynamodb: %s\n", err.Error())
 		}
 		if document != nil {
-			// TODO: If the document is more than an hour old, invoke the lambda to update it.
-
 			fmt.Printf("Found document with %d versions\n", len(document.Versions))
+
+			if document.LastUpdated.Before(time.Now().Add(-providerCacheAge)) {
+				fmt.Printf("Document contains stale data (more than 1 hour ago), returning it alongside request to update document")
+				err = asyncPopulateProviderVersions(cfg, ctx, effectiveNamespace, params.Type)
+				if err != nil {
+					// log the error but carry on. If there is an error triggering the lambda to update dynamodb with the
+					// provider versions, we'll continue and fetch it from github.
+					// We want to be fault-tolerant here so that we don't fail to serve the request if there is an error
+					// triggering the lambda
+					fmt.Printf("Error triggering lambda to update dynamodb: %s\n", err.Error())
+				}
+			}
 			return foundDocumentResponse(document)
 		}
 
 		fmt.Printf("Document not found in dynamodb, invoking lambda and loading from github\n")
-		lambdaClient := lambda.NewFromConfig(cfg)
-
-		fmt.Printf("Invoking populate provider versions lambda asynchronously to update dynamodb document\n")
-		// invoke the async lambda to update the dynamodb document
-		_, err = lambdaClient.Invoke(ctx, &lambda.InvokeInput{
-			FunctionName:   aws.String(os.Getenv("POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME")),
-			InvocationType: "Event", // Event == async
-			Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"type\": \"%s\"}", effectiveNamespace, params.Type)),
-		})
+		err = asyncPopulateProviderVersions(cfg, ctx, effectiveNamespace, params.Type)
 		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			// log the error but carry on. If there is an error triggering the lambda to update dynamodb with the
+			// provider versions, we'll continue and fetch it from github.
+			// We want to be fault-tolerant here so that we don't fail to serve the request if there is an error
+			// triggering the lambda
+			fmt.Printf("Error triggering lambda to update dynamodb: %s\n", err.Error())
 		}
 
 		versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, effectiveNamespace, repoName)
