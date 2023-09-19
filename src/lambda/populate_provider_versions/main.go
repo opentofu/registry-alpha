@@ -79,7 +79,7 @@ func HandleRequest(config *Config) func(ctx context.Context, e PopulateProviderV
 			return "", err
 		}
 
-		err = versions_cache.StoreProviderListingInDynamo(e.Namespace, e.Type, versions)
+		err = versions_cache.StoreProviderListingInDynamo(ctx, e.Namespace, e.Type, versions)
 		if err != nil {
 			return "", fmt.Errorf("failed to store provider listing: %w", err)
 		}

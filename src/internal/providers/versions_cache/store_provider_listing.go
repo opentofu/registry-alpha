@@ -1,11 +1,12 @@
 package versions_cache
 
 import (
+	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/opentffoundation/registry/internal/providers"
 	"os"
 	"time"
@@ -17,7 +18,7 @@ type ProviderVersionListingItem struct {
 	LastUpdated time.Time           `json:"last_updated"`
 }
 
-func StoreProviderListingInDynamo(providerNamespace string, providerType string, versions []providers.Version) error {
+func StoreProviderListingInDynamo(ctx context.Context, providerNamespace string, providerType string, versions []providers.Version) error {
 	tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
 	if tableName == "" {
 		panic(fmt.Errorf("missing environment variable PROVIDER_VERSIONS_TABLE_NAME"))
@@ -25,12 +26,12 @@ func StoreProviderListingInDynamo(providerNamespace string, providerType string,
 
 	provider := fmt.Sprintf("%s/%s", providerNamespace, providerType)
 
-	// Create AWS Session
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("AWS_REGION"))},
-	)
+	awsConfig, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(os.Getenv("AWS_REGION")))
+	if err != nil {
+		return fmt.Errorf("could not load AWS configuration: %w", err)
+	}
 
-	ddbClient := dynamodb.New(sess)
+	ddbClient := dynamodb.NewFromConfig(awsConfig)
 
 	item := ProviderVersionListingItem{
 		Provider:    provider,
@@ -38,7 +39,7 @@ func StoreProviderListingInDynamo(providerNamespace string, providerType string,
 		LastUpdated: time.Now(),
 	}
 
-	marshalledItem, err := dynamodbattribute.MarshalMap(item)
+	marshalledItem, err := attributevalue.MarshalMap(item)
 	if err != nil {
 		return fmt.Errorf("got error marshalling dynamodb item: %w", err)
 	}
@@ -48,7 +49,7 @@ func StoreProviderListingInDynamo(providerNamespace string, providerType string,
 		TableName: aws.String(tableName),
 	}
 
-	_, err = ddbClient.PutItem(putItemInput)
+	_, err = ddbClient.PutItem(ctx, putItemInput)
 	if err != nil {
 		return fmt.Errorf("got error calling PutItem: %w", err)
 	}
