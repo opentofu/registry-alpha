@@ -8,7 +8,8 @@ import (
 )
 
 func main() {
-	config, err := config.BuildConfig(context.Background(), "populate_provider_versions.buildconfig")
+	configBuilder := config.NewConfigBuilder()
+	config, err := configBuilder.BuildConfig(context.Background(), "populate_provider_versions.buildconfig")
 	if err != nil {
 		panic(fmt.Errorf("could not build config: %w", err))
 	}

@@ -16,6 +16,24 @@ import (
 	"os"
 )
 
+type ConfigBuilder struct {
+	IncludeProviderRedirects bool
+}
+
+func NewConfigBuilder(options ...func(*ConfigBuilder)) *ConfigBuilder {
+	configBuilder := &ConfigBuilder{}
+	for _, option := range options {
+		option(configBuilder)
+	}
+	return configBuilder
+}
+
+func WithProviderRedirects() func(*ConfigBuilder) {
+	return func(builder *ConfigBuilder) {
+		builder.IncludeProviderRedirects = true
+	}
+}
+
 type Config struct {
 	ManagedGithubClient *gogithub.Client
 	RawGithubv4Client   *githubv4.Client
@@ -30,7 +48,7 @@ type Config struct {
 // BuildConfig will build a configuration object for the application. This
 // includes loading secrets from AWS Secrets Manager, and configuring the
 // AWS SDK.
-func BuildConfig(ctx context.Context, xraySegmentName string) (config *Config, err error) {
+func (c ConfigBuilder) BuildConfig(ctx context.Context, xraySegmentName string) (config *Config, err error) {
 	if err = xray.Configure(xray.Config{ServiceVersion: "1.2.3"}); err != nil {
 		err = fmt.Errorf("could not configure X-Ray: %w", err)
 		return
@@ -64,9 +82,11 @@ func BuildConfig(ctx context.Context, xraySegmentName string) (config *Config, e
 	}
 
 	providerRedirects := make(map[string]string)
-	if redirectsJSON, ok := os.LookupEnv("PROVIDER_NAMESPACE_REDIRECTS"); ok {
-		if err := json.Unmarshal([]byte(redirectsJSON), &providerRedirects); err != nil {
-			panic(fmt.Errorf("could not parse PROVIDER_NAMESPACE_REDIRECTS: %w", err))
+	if c.IncludeProviderRedirects {
+		if redirectsJSON, ok := os.LookupEnv("PROVIDER_NAMESPACE_REDIRECTS"); ok {
+			if err := json.Unmarshal([]byte(redirectsJSON), &providerRedirects); err != nil {
+				panic(fmt.Errorf("could not parse PROVIDER_NAMESPACE_REDIRECTS: %w", err))
+			}
 		}
 	}
 
