@@ -13,9 +13,9 @@ import (
 )
 
 type ProviderVersionListingItem struct {
-	Provider    string              `json:"provider"`
-	Versions    []providers.Version `json:"versions"`
-	LastUpdated time.Time           `json:"last_updated"`
+	Provider    string              `dynamodbav:"provider"`
+	Versions    []providers.Version `dynamodbav:"versions"`
+	LastUpdated time.Time           `dynamodbav:"last_updated"`
 }
 
 func StoreProviderListingInDynamo(ctx context.Context, providerNamespace string, providerType string, versions []providers.Version) error {
