@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/opentffoundation/registry/internal/config"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
 	"github.com/opentffoundation/registry/internal/providers/providercache"
@@ -33,12 +33,10 @@ type ListProviderVersionsResponse struct {
 	Versions []providers.Version `json:"versions"`
 }
 
-func listProviderVersions(config Config) LambdaFunc {
+func listProviderVersions(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListProvidersPathParams(req)
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
-
-		// Construct the repo name.
 		repoName := providers.GetRepoName(params.Type)
 
 		// check the repo exists
@@ -50,20 +48,7 @@ func listProviderVersions(config Config) LambdaFunc {
 			return NotFoundResponse, nil
 		}
 
-		// TODO: Move this to a shared package that can be used across all lambdas.
-		cfg, err := awsconfig.LoadDefaultConfig(context.TODO(), awsconfig.WithRegion(os.Getenv("AWS_REGION")))
-		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, fmt.Errorf("could not load AWS configuration: %w", err)
-		}
-
-		ddbClient := dynamodb.NewFromConfig(cfg)
-
-		tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
-		if tableName == "" {
-			panic(fmt.Errorf("missing environment variable PROVIDER_VERSIONS_TABLE_NAME"))
-		}
-
-		document, err := getDocument(ctx, ddbClient, tableName, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
+		document, err := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
 		if err != nil {
 			// log the error but carry on. If there is an error fetching the document, we'll just fetch it from github.
 			// we want to be fault-tolerant here so that we don't fail to serve the request if there is an error
@@ -78,11 +63,10 @@ func listProviderVersions(config Config) LambdaFunc {
 		}
 
 		fmt.Printf("Document not found in dynamodb, invoking lambda and loading from github\n")
-		lambdaClient := lambda.NewFromConfig(cfg)
 
 		fmt.Printf("Invoking populate provider versions lambda asynchronously to update dynamodb document\n")
 		// invoke the async lambda to update the dynamodb document
-		_, err = lambdaClient.Invoke(ctx, &lambda.InvokeInput{
+		_, err = config.LambdaClient.Invoke(ctx, &lambda.InvokeInput{
 			FunctionName:   aws.String(os.Getenv("POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME")),
 			InvocationType: "Event", // Event == async
 			Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"type\": \"%s\"}", effectiveNamespace, params.Type)),

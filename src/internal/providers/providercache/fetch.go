@@ -7,8 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
-func (p *Handler) GetItem(ctx context.Context, client *dynamodb.Client, tableName string, key string) (*VersionListingItem, error) {
-	result, err := client.GetItem(ctx, &dynamodb.GetItemInput{
+func (p *Handler) GetItem(ctx context.Context, key string) (*VersionListingItem, error) {
+	result, err := p.Client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: p.TableName,
 		Key: map[string]types.AttributeValue{
 			"provider": &types.AttributeValueMemberS{Value: key},

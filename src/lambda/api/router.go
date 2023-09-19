@@ -4,23 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/aws-xray-sdk-go/xray"
+	"github.com/opentffoundation/registry/internal/config"
 	"regexp"
 
 	"github.com/aws/aws-lambda-go/events"
 )
 
-// EffectiveProviderNamespace will map namespaces for providers in situations
-// where the author (owner of the namespace) does not release artifacts as
-// GitHub Releases.
-func (c Config) EffectiveProviderNamespace(namespace string) string {
-	if redirect, ok := c.ProviderRedirects[namespace]; ok {
-		return redirect
-	}
-
-	return namespace
-}
-
-func RouteHandlers(config Config) map[string]LambdaFunc {
+func RouteHandlers(config config.Config) map[string]LambdaFunc {
 	return map[string]LambdaFunc{
 		// Download provider version
 		// `/v1/providers/{namespace}/{type}/{version}/download/{os}/{arch}`
@@ -43,7 +33,7 @@ func RouteHandlers(config Config) map[string]LambdaFunc {
 	}
 }
 
-func getRouteHandler(config Config, path string) LambdaFunc {
+func getRouteHandler(config config.Config, path string) LambdaFunc {
 	// We will replace this with some sort of actual router (chi, gorilla, etc)
 	// for now regex is fine
 	for route, handler := range RouteHandlers(config) {
@@ -54,7 +44,7 @@ func getRouteHandler(config Config, path string) LambdaFunc {
 	return nil
 }
 
-func Router(config Config) LambdaFunc {
+func Router(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		ctx, segment := xray.BeginSubsegment(ctx, "registry.handle")
 		handler := getRouteHandler(config, req.Path)

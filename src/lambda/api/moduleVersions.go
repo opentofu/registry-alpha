@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"github.com/opentffoundation/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"
 
@@ -32,7 +33,7 @@ type ModulesResponse struct {
 	Versions []modules.Version `json:"versions"`
 }
 
-func listModuleVersions(config Config) LambdaFunc {
+func listModuleVersions(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListModuleVersionsPathParams(req)
 		repoName := modules.GetRepoName(params.System, params.Name)
