@@ -37,7 +37,7 @@ This will however have an impact on the users of the provider, which will no lon
 
 ## Contributing to the project
 
-This section describes how to contribute to the project and is intended for developers who wish to contribute new features, bug fixes, or improvements to the project. It includes information about the requirements, setup, deployment, and DNS configuration.
+** NOTE **: This project is still in development and is not yet accepting contributions. Please check back later.
 
 ### Requirements
 
@@ -55,10 +55,10 @@ This section describes how to contribute to the project and is intended for deve
     ```
 
 2. **Set Up Go**:
-   Navigate to the `lambda` directory and download the required Go modules.
+   Navigate to the `src` directory and download the required Go modules.
 
     ```bash
-    cd lambda
+    cd src
     go mod download
     ```
 
@@ -86,7 +86,7 @@ To provide values for these variables:
 
     ```hcl
     github_api_token = "YOUR_GITHUB_API_TOKEN"
-    route53_zone_id  = "Z008B5091482A026MN9AUQ"
+    route53_zone_id  = "Z008ABCDEF482A026MN9AUQ"
     domain_name      = "sub.example.com"
     ```
   
