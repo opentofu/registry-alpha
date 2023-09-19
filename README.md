@@ -1,6 +1,8 @@
 # Registry
 
-A simple Golang AWS Lambda and supporting infrastructure definitions to act as a simple, stateless registry that sits on top of github repositories.
+A Simple set of Golang AWS Lambdas and supporting infrastructure definitions to act as a simple, stateless registry that sits on top of github repositories.
+
+This repository and code is meant to be temporary and is not intended for long term usage.
 
 ## Table of Contents
 
