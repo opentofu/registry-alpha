@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
-	"github.com/opentffoundation/registry/internal/providers/versions_cache"
 )
 
 type PopulateProviderVersionsEvent struct {
@@ -58,7 +57,7 @@ func HandleRequest(config *Config) func(ctx context.Context, e PopulateProviderV
 				return fmt.Errorf("failed to check if repo exists: %w", err)
 			}
 			if !exists {
-				return fmt.Errorf("repo does not exist")
+				return fmt.Errorf("repo %s/%s does not exist", e.Namespace, repoName)
 			}
 
 			fmt.Printf("Repo %s/%s exists\n", e.Namespace, repoName)
@@ -75,11 +74,11 @@ func HandleRequest(config *Config) func(ctx context.Context, e PopulateProviderV
 		})
 
 		if err != nil {
-			fmt.Printf("error: %s\n", err.Error())
+			fmt.Printf("error fetching provider versions: %s\n", err.Error())
 			return "", err
 		}
 
-		err = versions_cache.StoreProviderListingInDynamo(ctx, e.Namespace, e.Type, versions)
+		err = config.ProviderVersionCache.Store(ctx, e.Namespace, e.Type, versions)
 		if err != nil {
 			return "", fmt.Errorf("failed to store provider listing: %w", err)
 		}

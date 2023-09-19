@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	gogithub "github.com/google/go-github/v54/github"
 	"github.com/opentffoundation/registry/internal/github"
+	"github.com/opentffoundation/registry/internal/providers/providercache"
 	"github.com/opentffoundation/registry/internal/secrets"
 	"github.com/shurcooL/githubv4"
 	"os"
@@ -15,7 +19,11 @@ import (
 type Config struct {
 	ManagedGithubClient *gogithub.Client
 	RawGithubv4Client   *githubv4.Client
-	ProviderRedirects   map[string]string
+
+	DynamoClient         *dynamodb.Client
+	LambdaClient         *lambda.Client
+	ProviderVersionCache *providercache.Handler
+	SecretsHandler       *secrets.Handler
 }
 
 func buildConfig(ctx context.Context) (config *Config, err error) {
@@ -24,37 +32,40 @@ func buildConfig(ctx context.Context) (config *Config, err error) {
 		return
 	}
 
-	// fetch the GitHub token ASM name from the environment
-	githubTokenSecretName := os.Getenv("GITHUB_TOKEN_SECRET_ASM_NAME")
-	if githubTokenSecretName == "" {
-		panic("GITHUB_TOKEN_SECRET_ASM_NAME environment variable not set")
-	}
-
 	// At this point we're not part of a Lambda request execution, so let's
 	// explicitly create a segment to represent the configuration process.
 	ctx, segment := xray.BeginSegment(ctx, "populate_provider_versions.config")
 	defer func() { segment.Close(err) }()
 
-	var secretsmanager *secretsmanager.Client
-	if secretsmanager, err = secrets.GetClient(ctx); err != nil {
-		err = fmt.Errorf("could not get secrets manager client: %w", err)
+	var awsConfig aws.Config
+	awsConfig, err = awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(os.Getenv("AWS_REGION")))
+	if err != nil {
+		err = fmt.Errorf("could not load AWS configuration: %w", err)
 		return
 	}
 
-	var githubAPIToken string
-	if githubAPIToken, err = secrets.GetValue(ctx, secretsmanager, githubTokenSecretName); err != nil {
+	secretsHandler := secrets.NewHandler(awsConfig)
+
+	githubAPIToken, err := secretsHandler.GetValueFromEnvVar(ctx, "GITHUB_TOKEN_SECRET_ASM_NAME")
+	if err != nil {
 		err = fmt.Errorf("could not get GitHub API token: %w", err)
 		return
 	}
 
-	if githubAPIToken == "" {
-		err = fmt.Errorf("empty GitHub API token fetched from secrets manager")
+	var tableName string
+	tableName = os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
+	if tableName == "" {
+		err = fmt.Errorf("PROVIDER_VERSIONS_TABLE_NAME environment variable not set")
 		return
 	}
 
 	config = &Config{
 		ManagedGithubClient: github.NewManagedGithubClient(githubAPIToken),
 		RawGithubv4Client:   github.NewRawGithubv4Client(githubAPIToken),
+
+		SecretsHandler:       secretsHandler,
+		ProviderVersionCache: providercache.NewHandler(awsConfig, tableName),
+		LambdaClient:         lambda.NewFromConfig(awsConfig),
 	}
 	return
 }

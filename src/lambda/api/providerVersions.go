@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
-	"github.com/opentffoundation/registry/internal/providers/versions_cache"
+	"github.com/opentffoundation/registry/internal/providers/providercache"
 	"os"
 )
 
@@ -109,8 +109,7 @@ func listProviderVersions(config Config) LambdaFunc {
 	}
 }
 
-func foundDocumentResponse(document *versions_cache.ProviderVersionListingItem) (events.APIGatewayProxyResponse, error) {
-
+func foundDocumentResponse(document *providercache.VersionListingItem) (events.APIGatewayProxyResponse, error) {
 	// we found the document, return it
 	response := ListProviderVersionsResponse{
 		Versions: document.Versions,
@@ -123,7 +122,7 @@ func foundDocumentResponse(document *versions_cache.ProviderVersionListingItem) 
 	return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
 }
 
-func getDocument(ctx context.Context, client *dynamodb.Client, tableName string, key string) (*versions_cache.ProviderVersionListingItem, error) {
+func getDocument(ctx context.Context, client *dynamodb.Client, tableName string, key string) (*providercache.VersionListingItem, error) {
 	result, err := client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]types.AttributeValue{
@@ -140,7 +139,7 @@ func getDocument(ctx context.Context, client *dynamodb.Client, tableName string,
 	}
 
 	// unmarshal the item
-	var item versions_cache.ProviderVersionListingItem
+	var item providercache.VersionListingItem
 	err = attributevalue.UnmarshalMap(result.Item, &item)
 	if err != nil {
 		return nil, err

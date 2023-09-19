@@ -4,29 +4,43 @@ import (
 	"context"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	"github.com/aws/aws-xray-sdk-go/instrumentation/awsv2"
 	"os"
 )
 
-func GetClient(ctx context.Context) (*secretsmanager.Client, error) {
-	awsConfig, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(os.Getenv("AWS_REGION")))
-	if err != nil {
-		return nil, fmt.Errorf("could not load AWS configuration: %w", err)
-	}
-
-	awsv2.AWSV2Instrumentor(&awsConfig.APIOptions)
-
-	return secretsmanager.NewFromConfig(awsConfig), nil
+type Handler struct {
+	client *secretsmanager.Client
 }
 
-func GetValue(ctx context.Context, sm *secretsmanager.Client, secretName string) (string, error) {
-	value, err := sm.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{
+func NewHandler(awsConfig aws.Config) *Handler {
+	client := secretsmanager.NewFromConfig(awsConfig)
+	return &Handler{client: client}
+}
+
+func (s *Handler) GetValue(ctx context.Context, secretName string) (string, error) {
+	value, err := s.client.GetSecretValue(ctx, &secretsmanager.GetSecretValueInput{
 		SecretId: aws.String(secretName),
 	})
 	if err != nil {
 		return "", err
 	}
 	return *value.SecretString, nil
+}
+
+func (s *Handler) GetValueFromEnvVar(ctx context.Context, envVarName string) (string, error) {
+	envVarValue := os.Getenv(envVarName)
+	if envVarValue == "" {
+		return "", fmt.Errorf("%s environment variable not set", envVarName)
+	}
+
+	var value string
+	value, err := s.GetValue(ctx, envVarValue)
+	if err != nil {
+		return "", fmt.Errorf("could not get secret: %w", err)
+	}
+
+	if value == "" {
+		return "", fmt.Errorf("empty value fetched from secrets manager")
+	}
+	return value, nil
 }
