@@ -58,6 +58,8 @@ resource "aws_lambda_function" "api_function" {
     variables = {
       GITHUB_TOKEN_SECRET_ASM_NAME = aws_secretsmanager_secret.github_api_token.name
       PROVIDER_NAMESPACE_REDIRECTS = jsonencode(var.provider_namespace_redirects)
+      PROVIDER_VERSIONS_TABLE_NAME = aws_dynamodb_table.provider_versions.name
+      POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME = aws_lambda_function.populate_provider_versions_function.function_name
     }
   }
 }

@@ -115,3 +115,30 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamo_policy_attachment" {
   role       = aws_iam_role.lambda.id
   policy_arn = aws_iam_policy.lambda_dynamo_policy.arn
 }
+
+// allow the api_function lambda to invoke the populate_provider_versions_function lambda
+data "aws_iam_policy_document" "populate_provider_versions_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "lambda:InvokeFunction"
+    ]
+
+    resources = [
+      aws_lambda_function.populate_provider_versions_function.arn
+    ]
+  }
+}
+
+resource "aws_iam_policy" "lambda_populate_provider_versions_policy" {
+  name        = "${var.domain_name}-RegistryLambdaPopulateProviderVersionsPolicy"
+  description = "Policy for the registry lambda to invoke the populate provider versions lambda"
+  policy      = data.aws_iam_policy_document.populate_provider_versions_policy.json
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_populate_provider_versions_policy_attachment" {
+  role       = aws_iam_role.lambda.id
+  policy_arn = aws_iam_policy.lambda_populate_provider_versions_policy.arn
+}
+
+

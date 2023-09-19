@@ -15,6 +15,8 @@ github.com/aws/aws-sdk-go v1.44.114 h1:plIkWc/RsHr3DXBj4MEw9sEW4CcL/e2ryokc+CKyq
 github.com/aws/aws-sdk-go v1.44.114/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
 github.com/aws/aws-sdk-go-v2 v1.21.0 h1:gMT0IW+03wtYJhRqTVYn0wLzwdnK9sRMcxmtfGzRdJc=
 github.com/aws/aws-sdk-go-v2 v1.21.0/go.mod h1:/RfNgGmRxI+iFOB1OeJUyxiU+9s88k3pfHvDagGEp0M=
+github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.13 h1:OPLEkmhXf6xFPiz0bLeDArZIDx1NNS4oJyG4nv3Gct0=
+github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.13/go.mod h1:gpAbvyDGQFozTEmlTFO8XcQKHzubdq0LzRyJpG6MiXM=
 github.com/aws/aws-sdk-go-v2/config v1.18.39 h1:oPVyh6fuu/u4OiW4qcuQyEtk7U7uuNBmHmJSLg1AJsQ=
 github.com/aws/aws-sdk-go-v2/config v1.18.39/go.mod h1:+NH/ZigdPckFpgB1TRcRuWCB/Kbbvkxc/iNAKTq5RhE=
 github.com/aws/aws-sdk-go-v2/credentials v1.13.37 h1:BvEdm09+ZEh2XtN+PVHPcYwKY3wIeB6pw7vPRM4M9/U=
@@ -39,6 +41,8 @@ github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.7.35 h1:UKjp
 github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.7.35/go.mod h1:B3dUg0V6eJesUTi+m27NUkj7n8hdDKYUpxj8f4+TqaQ=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.35 h1:CdzPW9kKitgIiLV1+MHobfR5Xg25iYnyzWZhyQuSlDI=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.35/go.mod h1:QGF2Rs33W5MaN9gYdEQOBBFPLwTZkEhRwI33f7KIG0o=
+github.com/aws/aws-sdk-go-v2/service/lambda v1.39.5 h1:uMvxJFS92hNW6BRX0Ou+5zb9DskgrJQHZ+5yT8FXK5Y=
+github.com/aws/aws-sdk-go-v2/service/lambda v1.39.5/go.mod h1:ByLHcf0zbHpyLTOy1iPVRPJWmAUPCiJv5k81dt52ID8=
 github.com/aws/aws-sdk-go-v2/service/route53 v1.6.2 h1:OsggywXCk9iFKdu2Aopg3e1oJITIuyW36hA/B0rqupE=
 github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.21.3 h1:H6ZipEknzu7RkJW3w2PP75zd8XOdR35AEY5D57YrJtA=
 github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.21.3/go.mod h1:5W2cYXDPabUmwULErlC92ffLhtTuyv4ai+5HhdbhfNo=

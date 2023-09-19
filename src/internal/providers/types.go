@@ -1,6 +1,8 @@
 package providers
 
-import "github.com/opentffoundation/registry/internal/platform"
+import (
+	"github.com/opentffoundation/registry/internal/platform"
+)
 
 // Version represents an individual provider version.
 // It provides details such as the version number, supported Terraform protocol versions, and platforms the provider is available for.
