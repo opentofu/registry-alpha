@@ -65,7 +65,10 @@ func listProviderVersions(config Config) LambdaFunc {
 
 		document, err := getDocument(ctx, ddbClient, tableName, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
 		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			// log the error but carry on. If there is an error fetching the document, we'll just fetch it from github.
+			// we want to be fault-tolerant here so that we don't fail to serve the request if there is an error
+			// fetching the document.
+			fmt.Printf("Error fetching document from dynamodb: %s\n", err.Error())
 		}
 		if document != nil {
 			// TODO: If the document is more than an hour old, invoke the lambda to update it.
