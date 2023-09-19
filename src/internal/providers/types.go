@@ -1,6 +1,9 @@
 package providers
 
-import "github.com/opentffoundation/registry/internal/platform"
+import (
+	"github.com/opentffoundation/registry/internal/platform"
+	"time"
+)
 
 // Version represents an individual provider version.
 // It provides details such as the version number, supported Terraform protocol versions, and platforms the provider is available for.
@@ -9,6 +12,14 @@ type Version struct {
 	Version   string              `json:"version"`   // The version number of the provider.
 	Protocols []string            `json:"protocols"` // The protocol versions the provider supports.
 	Platforms []platform.Platform `json:"platforms"` // A list of platforms for which this provider version is available.
+}
+
+// ProviderVersionListingItem represents a single item in the DynamoDB table for provider versions.
+// This is made to match the registry v1 API response format for listing provider versions.
+type ProviderVersionListingItem struct {
+	Provider    string    `json:"provider"`
+	Versions    []Version `json:"versions"`
+	LastUpdated time.Time `json:"last_updated"`
 }
 
 // VersionDetails provides comprehensive details about a specific provider version.
