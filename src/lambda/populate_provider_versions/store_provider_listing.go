@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/opentffoundation/registry/internal/providers"
+	"github.com/opentffoundation/registry/internal/providers/versions_cache"
 	"os"
 	"time"
 )
@@ -25,7 +26,7 @@ func storeProviderListingInDynamo(providerNamespace string, providerType string,
 
 	ddbClient := dynamodb.New(sess)
 
-	item := providers.ProviderVersionListingItem{
+	item := versions_cache.ProviderVersionListingItem{
 		Provider:    provider,
 		Versions:    versions,
 		LastUpdated: time.Now(),
