@@ -39,56 +39,49 @@ func listProviderVersions(config config.Config) LambdaFunc {
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := providers.GetRepoName(params.Type)
 
-		// check the repo exists
-		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName)
-		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
-		}
-		if !exists {
+		if exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName); !exists {
+			if err != nil {
+				return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			}
+			// if the repo doesn't exist, there's no point in trying to fetch versions
 			return NotFoundResponse, nil
 		}
 
-		document, err := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
-		if err != nil {
-			// log the error but carry on. If there is an error fetching the document, we'll just fetch it from github.
-			// we want to be fault-tolerant here so that we don't fail to serve the request if there is an error
-			// fetching the document.
-			fmt.Printf("Error fetching document from dynamodb: %s\n", err.Error())
-		}
+		// For now, we will ignore errors from the cache and just fetch from GH instead
+		document, _ := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
 		if document != nil {
-			fmt.Printf("Found document with %d versions, last_updated: %s\n", len(document.Versions), document.LastUpdated.String())
-			// if the document is within our accepted age range, return it
-			if document.LastUpdated.After(time.Now().Add(-providerCacheAge)) {
-				fmt.Printf("Document is recent enough, returning it\n")
-			}
-
-			// else the document is too old, we should update the cache
-			fmt.Printf("Document is too old, invoking lambda to update dynamodb\n")
-			err = triggerPopulateProviderVersions(ctx, config, effectiveNamespace, params.Type)
-			if err != nil {
-				// log the error but carry on. If there is an error triggering the lambda, we'll just fetch it from github.
-				fmt.Printf("Error triggering lambda to update dynamodb: %s\n", err.Error())
-			}
-
-			// no matter what, if we had a document we should return it
-			return foundDocumentResponse(document)
-		}
-		fmt.Printf("Document not found in dynamodb, invoking lambda and loading from github\n")
-
-		err = triggerPopulateProviderVersions(ctx, config, effectiveNamespace, params.Type)
-		if err != nil {
-			// log the error but carry on. If there is an error triggering the lambda, we'll just fetch it from github.
-			fmt.Printf("Error triggering lambda to update dynamodb: %s\n", err.Error())
+			return processDocument(ctx, document, config, effectiveNamespace, params.Type)
 		}
 
-		// fetch from GH
-		versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, effectiveNamespace, repoName)
-		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
-		}
-
-		return providerVersionsResponse(versions, err)
+		return fetchFromGithub(ctx, config, effectiveNamespace, repoName)
 	}
+}
+
+func processDocument(ctx context.Context, document *providercache.VersionListingItem, config config.Config, namespace, providerType string) (events.APIGatewayProxyResponse, error) {
+	fmt.Printf("Found document with %d versions, last_updated: %s\n", len(document.Versions), document.LastUpdated.String())
+
+	if document.LastUpdated.After(time.Now().Add(-providerCacheAge)) {
+		fmt.Printf("Document is recent enough, returning it\n")
+		return versionsResponse(document.Versions, nil)
+	}
+
+	fmt.Printf("Document is too old, invoking lambda to update dynamodb\n")
+	if err := triggerPopulateProviderVersions(ctx, config, namespace, providerType); err != nil {
+		fmt.Printf("Error triggering lambda to update dynamodb: %s\n", err.Error())
+	}
+
+	return versionsResponse(document.Versions, nil)
+}
+
+func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoName string) (events.APIGatewayProxyResponse, error) {
+	fmt.Printf("Document not found in dynamodb, invoking lambda and loading from github\n")
+
+	versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, namespace, repoName)
+	if err != nil {
+		return events.APIGatewayProxyResponse{StatusCode: 500}, err
+	}
+
+	return versionsResponse(versions, err)
 }
 
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
@@ -105,7 +98,7 @@ func triggerPopulateProviderVersions(ctx context.Context, config config.Config, 
 	return nil
 }
 
-func providerVersionsResponse(versions []providers.Version, err error) (events.APIGatewayProxyResponse, error) {
+func versionsResponse(versions []providers.Version, err error) (events.APIGatewayProxyResponse, error) {
 	response := ListProviderVersionsResponse{
 		Versions: versions,
 	}
@@ -115,18 +108,5 @@ func providerVersionsResponse(versions []providers.Version, err error) (events.A
 		return events.APIGatewayProxyResponse{StatusCode: 500}, err
 	}
 
-	return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
-}
-
-func foundDocumentResponse(document *providercache.VersionListingItem) (events.APIGatewayProxyResponse, error) {
-	// we found the document, return it
-	response := ListProviderVersionsResponse{
-		Versions: document.Versions,
-	}
-
-	resBody, err := json.Marshal(response)
-	if err != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 500}, err
-	}
 	return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
 }
