@@ -41,8 +41,10 @@ func listProviderVersions(config config.Config) LambdaFunc {
 
 		if exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName); !exists {
 			if err != nil {
+				fmt.Printf("Error checking if repo exists: %s\n", err.Error())
 				return events.APIGatewayProxyResponse{StatusCode: 500}, err
 			}
+			fmt.Printf("Repo %s/%s does not exist\n", effectiveNamespace, repoName)
 			// if the repo doesn't exist, there's no point in trying to fetch versions
 			return NotFoundResponse, nil
 		}
@@ -79,7 +81,7 @@ func processDocument(ctx context.Context, document *providercache.VersionListing
 }
 
 func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoName string) (events.APIGatewayProxyResponse, error) {
-	fmt.Printf("Document not found in dynamodb, invoking lambda and loading from github\n")
+	fmt.Printf("Document not found in dynamodb, for %s%s invoking lambda and loading from github\n", namespace, repoName)
 
 	versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, namespace, repoName)
 	if err != nil {
