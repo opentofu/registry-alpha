@@ -18,6 +18,6 @@ variable "domain_name" {
 variable "provider_namespace_redirects" {
     type = map
     default = {
-        "hashicorp" : "opentffoundation"
+        "hashicorp" : "opentofu"
     }
 }
