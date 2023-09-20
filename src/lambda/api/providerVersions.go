@@ -53,6 +53,11 @@ func listProviderVersions(config config.Config) LambdaFunc {
 			return processDocument(ctx, document, config, effectiveNamespace, params.Type)
 		}
 
+		// if the document didn't exist in the cache, trigger the lambda to populate it and return the current results from GH
+		if err := triggerPopulateProviderVersions(ctx, config, effectiveNamespace, params.Type); err != nil {
+			fmt.Printf("Error triggering lambda to update dynamodb: %s\n", err.Error())
+		}
+
 		return fetchFromGithub(ctx, config, effectiveNamespace, repoName)
 	}
 }
