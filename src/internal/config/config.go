@@ -68,7 +68,7 @@ func (c ConfigBuilder) BuildConfig(ctx context.Context, xraySegmentName string) 
 
 	secretsHandler := secrets.NewHandler(awsConfig)
 
-	githubAPIToken, err := secretsHandler.GetValueFromEnvVar(ctx, "GITHUB_TOKEN_SECRET_ASM_NAME")
+	githubAPIToken, err := secretsHandler.GetSecretValueFromEnvReference(ctx, "GITHUB_TOKEN_SECRET_ASM_NAME")
 	if err != nil {
 		err = fmt.Errorf("could not get GitHub API token: %w", err)
 		return

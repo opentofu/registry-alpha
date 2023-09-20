@@ -27,7 +27,7 @@ func (s *Handler) GetValue(ctx context.Context, secretName string) (string, erro
 	return *value.SecretString, nil
 }
 
-func (s *Handler) GetValueFromEnvVar(ctx context.Context, envVarName string) (string, error) {
+func (s *Handler) GetSecretValueFromEnvReference(ctx context.Context, envVarName string) (string, error) {
 	envVarValue := os.Getenv(envVarName)
 	if envVarValue == "" {
 		return "", fmt.Errorf("%s environment variable not set", envVarName)
