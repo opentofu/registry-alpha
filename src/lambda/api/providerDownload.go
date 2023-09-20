@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/opentffoundation/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"
 
@@ -19,7 +20,17 @@ type DownloadHandlerPathParams struct {
 	Version      string `json:"version"`
 }
 
-func downloadProviderVersion(config Config) LambdaFunc {
+func getDownloadPathParams(req events.APIGatewayProxyRequest) DownloadHandlerPathParams {
+	return DownloadHandlerPathParams{
+		Architecture: req.PathParameters["arch"],
+		OS:           req.PathParameters["os"],
+		Namespace:    req.PathParameters["namespace"],
+		Type:         req.PathParameters["type"],
+		Version:      req.PathParameters["version"],
+	}
+}
+
+func downloadProviderVersion(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadPathParams(req)
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
@@ -48,15 +59,5 @@ func downloadProviderVersion(config Config) LambdaFunc {
 			return events.APIGatewayProxyResponse{StatusCode: 500}, err
 		}
 		return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
-	}
-}
-
-func getDownloadPathParams(req events.APIGatewayProxyRequest) DownloadHandlerPathParams {
-	return DownloadHandlerPathParams{
-		Architecture: req.PathParameters["arch"],
-		OS:           req.PathParameters["os"],
-		Namespace:    req.PathParameters["namespace"],
-		Type:         req.PathParameters["type"],
-		Version:      req.PathParameters["version"],
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/opentffoundation/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"
 
@@ -17,7 +18,7 @@ type DownloadModuleHandlerPathParams struct {
 	Version   string `json:"version"`
 }
 
-func downloadModuleVersion(config Config) LambdaFunc {
+func downloadModuleVersion(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadModuleHandlerPathParams(req)
 

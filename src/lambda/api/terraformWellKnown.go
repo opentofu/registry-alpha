@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/opentffoundation/registry/internal/config"
 )
 
 const wellKnownMetadataResponse = `{
@@ -10,7 +11,7 @@ const wellKnownMetadataResponse = `{
 	  "providers.v1": "/v1/providers/"
 }`
 
-func terraformWellKnownMetadataHandler(_ Config) LambdaFunc {
+func terraformWellKnownMetadataHandler(_ config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		return events.APIGatewayProxyResponse{
 			StatusCode: 200,
