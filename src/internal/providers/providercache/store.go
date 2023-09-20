@@ -16,16 +16,6 @@ type Handler struct {
 }
 
 func NewHandler(awsConfig aws.Config, tableName string) *Handler {
-	//tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
-	//if tableName == "" {
-	//	panic(fmt.Errorf("missing environment variable PROVIDER_VERSIONS_TABLE_NAME"))
-	//}
-	//
-	//awsConfig, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(os.Getenv("AWS_REGION")))
-	//if err != nil {
-	//	return nil, fmt.Errorf("could not load AWS configuration: %w", err)
-	//}
-
 	ddbClient := dynamodb.NewFromConfig(awsConfig)
 
 	return &Handler{
@@ -40,18 +30,9 @@ type VersionListingItem struct {
 	LastUpdated time.Time           `dynamodbav:"last_updated"`
 }
 
-func (p *Handler) Store(ctx context.Context, providerNamespace string, providerType string, versions []providers.Version) error {
-	provider := fmt.Sprintf("%s/%s", providerNamespace, providerType)
-	//
-	//awsConfig, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(os.Getenv("AWS_REGION")))
-	//if err != nil {
-	//	return fmt.Errorf("could not load AWS configuration: %w", err)
-	//}
-	//
-	//ddbClient := dynamodb.NewFromConfig(awsConfig)
-
+func (p *Handler) Store(ctx context.Context, key string, versions []providers.Version) error {
 	item := VersionListingItem{
-		Provider:    provider,
+		Provider:    key,
 		Versions:    versions,
 		LastUpdated: time.Now(),
 	}

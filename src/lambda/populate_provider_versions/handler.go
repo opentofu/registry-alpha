@@ -70,7 +70,9 @@ func HandleRequest(config *config.Config) LambdaFunc {
 			return "", err
 		}
 
-		err = config.ProviderVersionCache.Store(ctx, e.Namespace, e.Type, versions)
+		key := fmt.Sprintf("%s/%s", e.Namespace, e.Type)
+
+		err = config.ProviderVersionCache.Store(ctx, key, versions)
 		if err != nil {
 			return "", fmt.Errorf("failed to store provider listing: %w", err)
 		}
