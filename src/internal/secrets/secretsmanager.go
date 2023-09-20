@@ -3,9 +3,10 @@ package secrets
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	"os"
 )
 
 type Handler struct {

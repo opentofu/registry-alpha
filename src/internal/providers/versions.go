@@ -7,8 +7,9 @@ import (
 	"sync"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
-	"github.com/opentffoundation/registry/internal/github"
 	"github.com/shurcooL/githubv4"
+
+	"github.com/opentofu/registry/internal/github"
 )
 
 // GetVersions fetches and returns a list of available versions of a given  provider hosted on GitHub.

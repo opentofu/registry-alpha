@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/opentffoundation/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"
 
-	"github.com/opentffoundation/registry/internal/github"
-	"github.com/opentffoundation/registry/internal/providers"
+	"github.com/opentofu/registry/internal/config"
+	"github.com/opentofu/registry/internal/github"
+	"github.com/opentofu/registry/internal/providers"
 )
 
 type DownloadHandlerPathParams struct {

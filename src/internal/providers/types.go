@@ -1,7 +1,7 @@
 package providers
 
 import (
-	"github.com/opentffoundation/registry/internal/platform"
+	"github.com/opentofu/registry/internal/platform"
 )
 
 // Version represents an individual provider version.

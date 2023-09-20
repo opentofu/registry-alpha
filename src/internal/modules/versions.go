@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/shurcooL/githubv4"
 
-	"github.com/opentffoundation/registry/internal/github"
+	"github.com/opentofu/registry/internal/github"
 )
 
 // TODO: doc

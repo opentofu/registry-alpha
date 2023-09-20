@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/opentffoundation/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"
 
-	"github.com/opentffoundation/registry/internal/github"
-	"github.com/opentffoundation/registry/internal/modules"
+	"github.com/opentofu/registry/internal/config"
+	"github.com/opentofu/registry/internal/github"
+	"github.com/opentofu/registry/internal/modules"
 )
 
 type DownloadModuleHandlerPathParams struct {

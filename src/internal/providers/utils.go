@@ -7,8 +7,9 @@ import (
 	"strings"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
-	"github.com/opentffoundation/registry/internal/github"
-	"github.com/opentffoundation/registry/internal/platform"
+
+	"github.com/opentofu/registry/internal/github"
+	"github.com/opentofu/registry/internal/platform"
 )
 
 func getShaSum(ctx context.Context, downloadURL string, filename string) (shaSum string, err error) {

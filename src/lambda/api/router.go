@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/aws/aws-xray-sdk-go/xray"
-	"github.com/opentffoundation/registry/internal/config"
 	"regexp"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-xray-sdk-go/xray"
+
+	"github.com/opentofu/registry/internal/config"
 )
 
 func RouteHandlers(config config.Config) map[string]LambdaFunc {

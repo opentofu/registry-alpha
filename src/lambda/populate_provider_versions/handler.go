@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-xray-sdk-go/xray"
-	"github.com/opentffoundation/registry/internal/config"
-	"github.com/opentffoundation/registry/internal/github"
-	"github.com/opentffoundation/registry/internal/providers"
+
+	"github.com/opentofu/registry/internal/config"
+	"github.com/opentofu/registry/internal/github"
+	"github.com/opentofu/registry/internal/providers"
 )
 
 type PopulateProviderVersionsEvent struct {

@@ -4,16 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	gogithub "github.com/google/go-github/v54/github"
-	"github.com/opentffoundation/registry/internal/github"
-	"github.com/opentffoundation/registry/internal/providers/providercache"
-	"github.com/opentffoundation/registry/internal/secrets"
 	"github.com/shurcooL/githubv4"
-	"os"
+
+	"github.com/opentofu/registry/internal/github"
+	"github.com/opentofu/registry/internal/providers/providercache"
+	"github.com/opentofu/registry/internal/secrets"
 )
 
 type ConfigBuilder struct {

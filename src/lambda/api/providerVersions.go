@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
-	"github.com/opentffoundation/registry/internal/config"
-	"github.com/opentffoundation/registry/internal/github"
-	"github.com/opentffoundation/registry/internal/providers"
-	"github.com/opentffoundation/registry/internal/providers/providercache"
-	"os"
-	"time"
+
+	"github.com/opentofu/registry/internal/config"
+	"github.com/opentofu/registry/internal/github"
+	"github.com/opentofu/registry/internal/providers"
+	"github.com/opentofu/registry/internal/providers/providercache"
 )
 
 const providerCacheAge = 1 * time.Hour

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentffoundation/registry/internal/providers"
+	"github.com/opentofu/registry/internal/providers"
 )
 
 func TestKeysForNamespace(t *testing.T) {
