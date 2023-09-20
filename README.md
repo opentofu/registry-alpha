@@ -25,7 +25,7 @@ This section describes how to register public keys for the providers and is inte
 
 ### Adding a public key
 
-All keys are stored in the `lambda/internal/provider/keys` directory. That directory contains subdirectories, each of which is named after the GitHub namespace (username or organization name) that hosts one or more providers.
+All keys are stored in the `src/internal/providers/keys` directory. That directory contains subdirectories, each of which is named after the GitHub namespace (username or organization name) that hosts one or more providers.
 
 Inside that directory are one or more ASCII-armored public key files. The names of the files are not relevant to the registry code, but it is recommended that they have a `.asc` extension. It may also be a good idea to name the files using the registration date to make it easier for the reader to determine which key is the most recent. The contents of the file should be the ASCII-armored public key for the namespace.
 
