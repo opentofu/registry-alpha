@@ -39,6 +39,14 @@ func listProviderVersions(config config.Config) LambdaFunc {
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := providers.GetRepoName(params.Type)
 
+		// For now, we will ignore errors from the cache and just fetch from GH instead
+		document, _ := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
+		if document != nil {
+			return processDocument(ctx, document, config, effectiveNamespace, params.Type)
+		}
+
+		// now that we know we dont have the document, we should check that the repo exists
+		// if we checked the repo exists before then we are making extra calls to github that we don't need to make.
 		if exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName); !exists {
 			if err != nil {
 				fmt.Printf("Error checking if repo exists: %s\n", err.Error())
@@ -47,12 +55,6 @@ func listProviderVersions(config config.Config) LambdaFunc {
 			fmt.Printf("Repo %s/%s does not exist\n", effectiveNamespace, repoName)
 			// if the repo doesn't exist, there's no point in trying to fetch versions
 			return NotFoundResponse, nil
-		}
-
-		// For now, we will ignore errors from the cache and just fetch from GH instead
-		document, _ := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
-		if document != nil {
-			return processDocument(ctx, document, config, effectiveNamespace, params.Type)
 		}
 
 		// if the document didn't exist in the cache, trigger the lambda to populate it and return the current results from GH
