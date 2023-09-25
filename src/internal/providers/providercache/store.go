@@ -25,6 +25,8 @@ func NewHandler(awsConfig aws.Config, tableName string) *Handler {
 	}
 }
 
+const AllowedAge = 1 * time.Hour
+
 type VersionListingItem struct {
 	Provider    string              `dynamodbav:"provider"`
 	Versions    []providers.Version `dynamodbav:"versions"`
