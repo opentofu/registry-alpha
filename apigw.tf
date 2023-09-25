@@ -298,8 +298,8 @@ resource "aws_api_gateway_method_settings" "download_method_settings" {
   settings {
     metrics_enabled                         = true
     caching_enabled                         = true
-    // 65 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (65*60)
+    // 60 minutes to keep it consistent with the provider versions cache TTL
+    cache_ttl_in_seconds                    = (60*60)
     require_authorization_for_cache_control = false
   }
 }
@@ -314,8 +314,8 @@ resource "aws_api_gateway_method_settings" "provider_list_versions_method_settin
   settings {
     metrics_enabled                         = true
     caching_enabled                         = true
-    // 65 minutes, to ensure we're over the (current) one hour limit of backend cache TTL
-    cache_ttl_in_seconds                    = (65*60)
+    // 60 minutes, to ensure we're over the (current) one hour limit of backend cache TTL
+    cache_ttl_in_seconds                    = (60*60)
     require_authorization_for_cache_control = false
   }
 }
@@ -331,8 +331,8 @@ resource "aws_api_gateway_method_settings" "module_download_method_settings" {
     metrics_enabled                         = true
     caching_enabled                         = true
 
-    // 65 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (65*60)
+    // 60 minutes to keep it consistent with the provider versions cache TTL
+    cache_ttl_in_seconds                    = (60*60)
     require_authorization_for_cache_control = false
   }
 }
@@ -347,8 +347,8 @@ resource "aws_api_gateway_method_settings" "module_list_versions_method_settings
   settings {
     metrics_enabled                         = true
     caching_enabled                         = true
-    // 65 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (65*60)
+    // 60 minutes to keep it consistent with the provider versions cache TTL
+    cache_ttl_in_seconds                    = (60*60)
     require_authorization_for_cache_control = false
   }
 }
@@ -363,8 +363,8 @@ resource "aws_api_gateway_method_settings" "well_known_method_settings" {
   settings {
     metrics_enabled                         = true
     caching_enabled                         = true
-    // 65 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (65*60)
+    // 60 minutes to keep it consistent with the provider versions cache TTL
+    cache_ttl_in_seconds                    = (60*60)
     require_authorization_for_cache_control = false
   }
 }
