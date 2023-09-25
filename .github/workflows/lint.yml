@@ -24,3 +24,4 @@ jobs:
         with:
           version: v1.54
           working-directory: src
+          args: --timeout=10m
