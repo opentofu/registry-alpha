@@ -122,17 +122,17 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 // - namespace: The GitHub namespace (typically, the organization or user) under which the provider repository is hosted.
 // - name: The name of the provider without the "terraform-provider-" prefix.
 // - version: The specific version of the Terraform provider to fetch details for.
-// - OS: The operating system for which the provider binary is intended.
+// - os: The operating system for which the provider binary is intended.
 // - arch: The architecture for which the provider binary is intended.
 //
 // Returns a VersionDetails structure with detailed information about the specified version. If an error occurs during fetching or processing, it returns an error.
 
-func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, version string, OS string, arch string) (versionDetails *VersionDetails, err error) {
+func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, version string, os string, arch string) (versionDetails *VersionDetails, err error) {
 	err = xray.Capture(ctx, "provider.versiondetails", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
 		xray.AddAnnotation(tracedCtx, "version", version)
-		xray.AddAnnotation(tracedCtx, "OS", OS)
+		xray.AddAnnotation(tracedCtx, "OS", os)
 		xray.AddAnnotation(tracedCtx, "arch", arch)
 
 		// Fetch the specific release for the given version.
@@ -147,7 +147,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 
 		// Initialize the VersionDetails struct.
 		versionDetails = &VersionDetails{
-			OS:   OS,
+			OS:   os,
 			Arch: arch,
 		}
 
@@ -166,7 +166,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		}
 
 		// Identify the appropriate asset for download based on OS and architecture.
-		assetToDownload := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", OS, arch))
+		assetToDownload := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", os, arch))
 		if assetToDownload == nil {
 			return fmt.Errorf("could not find asset to download")
 		}
