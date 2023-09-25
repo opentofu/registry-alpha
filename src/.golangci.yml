@@ -70,7 +70,7 @@ linters:
     - nilnil
     - noctx
     - nolintlint
-    - nonamedreturns
+  # - nonamedreturns # Disabling for now until we introduce structured logging (and pull out xray)
     - nosprintfhostport
     - predeclared
     - promlinter
