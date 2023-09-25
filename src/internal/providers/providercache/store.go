@@ -25,7 +25,9 @@ func NewHandler(awsConfig aws.Config, tableName string) *Handler {
 	}
 }
 
-const AllowedAge = 1 * time.Hour
+// AllowedAge is set to 55 minutes here because this ensures that the api gateway caching
+// of 1hr will not expire before the document should is updated when under consistent load.
+const AllowedAge = 1*time.Hour - (5 * time.Minute)
 
 type VersionListingItem struct {
 	Provider    string              `dynamodbav:"provider"`
