@@ -51,7 +51,8 @@ func HandleRequest(config *config.Config) LambdaFunc {
 				fmt.Printf("Error: failed to get item from cache: %s", err.Error())
 			}
 			if document != nil {
-				if document.LastUpdated.After(time.Now().Add(-providercache.AllowedAge)) {
+				oldestAllowedAge := time.Now().Add(-providercache.AllowedAge)
+				if document.LastUpdated.After(oldestAllowedAge) {
 					fmt.Printf("Document is up to date, not updating\n")
 					return nil
 				}

@@ -69,7 +69,8 @@ func listProviderVersions(config config.Config) LambdaFunc {
 func processDocument(ctx context.Context, document *providercache.VersionListingItem, config config.Config, namespace, providerType string) (events.APIGatewayProxyResponse, error) {
 	fmt.Printf("Found document with %d versions, last_updated: %s\n", len(document.Versions), document.LastUpdated.String())
 
-	if document.LastUpdated.After(time.Now().Add(-providercache.AllowedAge)) {
+	oldestAllowedAge := time.Now().Add(-providercache.AllowedAge)
+	if document.LastUpdated.After(oldestAllowedAge) {
 		fmt.Printf("Document is recent enough, returning it\n")
 		return versionsResponse(document.Versions)
 	}
