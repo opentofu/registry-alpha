@@ -25,18 +25,24 @@ func getShaSum(ctx context.Context, downloadURL string, filename string) (shaSum
 			return fmt.Errorf("failed to read asset contents: %w", contentsErr)
 		}
 
-		lines := strings.Split(string(contents), "\n")
-		for _, line := range lines {
-			if strings.HasSuffix(line, filename) {
-				shaSum = strings.Split(line, " ")[0]
-				break
-			}
-		}
+		shaSum = findShaSum(contents, filename, shaSum)
 
 		return nil
 	})
 
-	return
+	return shaSum, err
+}
+
+func findShaSum(contents []byte, filename string, shaSum string) string {
+	lines := strings.Split(string(contents), "\n")
+
+	for _, line := range lines {
+		if strings.HasSuffix(line, filename) {
+			shaSum = strings.Split(line, " ")[0]
+			break
+		}
+	}
+	return shaSum
 }
 
 func getSupportedArchAndOS(assets []github.ReleaseAsset) []platform.Platform {
