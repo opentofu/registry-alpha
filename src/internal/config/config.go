@@ -75,8 +75,7 @@ func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (confi
 		return nil, err
 	}
 
-	var tableName string
-	tableName = os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
+	tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
 	if tableName == "" {
 		err = fmt.Errorf("PROVIDER_VERSIONS_TABLE_NAME environment variable not set")
 		return nil, err
