@@ -50,6 +50,8 @@ resource "aws_lambda_function" "api_function" {
 
   runtime = "go1.x"
 
+  publish = true
+
   tracing_config {
     mode = "Active"
   }
@@ -62,6 +64,13 @@ resource "aws_lambda_function" "api_function" {
       POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME = aws_lambda_function.populate_provider_versions_function.function_name
     }
   }
+}
+
+// ensure we have provisioned concurrency for the lambda function
+resource "aws_lambda_provisioned_concurrency_config" "api_function" {
+  function_name = aws_lambda_function.api_function.function_name
+  provisioned_concurrent_executions = 1
+  qualifier = aws_lambda_function.api_function.version
 }
 
 // create the lambda function from zip file
