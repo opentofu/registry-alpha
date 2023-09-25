@@ -4,6 +4,8 @@ run:
 linters-settings:
   errcheck:
     check-type-assertions: true
+    exclude-functions:
+      github.com/aws/aws-xray-sdk-go/xray.AddAnnotation
 
   exhaustive:
     check:
@@ -33,7 +35,7 @@ linters:
     - execinquery
     - exhaustive
     - exportloopref
-    - forbidigo
+  # - forbidigo # Disabling for now until we introduce structured logging
     - funlen
     - gocheckcompilerdirectives
     - gochecknoglobals
