@@ -1,4 +1,4 @@
-module github.com/opentffoundation/registry
+module github.com/opentofu/registry
 
 go 1.20
 

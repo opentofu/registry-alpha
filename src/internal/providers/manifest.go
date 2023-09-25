@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/opentffoundation/registry/internal/github"
+	"github.com/opentofu/registry/internal/github"
 )
 
 type Manifest struct {
