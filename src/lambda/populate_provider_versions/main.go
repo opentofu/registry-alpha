@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	configBuilder := config.NewConfigBuilder()
+	configBuilder := config.NewBuilder()
 	config, err := configBuilder.BuildConfig(context.Background(), "populate_provider_versions.buildconfig")
 	if err != nil {
 		panic(fmt.Errorf("could not build config: %w", err))

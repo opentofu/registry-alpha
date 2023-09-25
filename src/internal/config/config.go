@@ -17,20 +17,20 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-type ConfigBuilder struct {
+type Builder struct {
 	IncludeProviderRedirects bool
 }
 
-func NewConfigBuilder(options ...func(*ConfigBuilder)) *ConfigBuilder {
-	configBuilder := &ConfigBuilder{}
+func NewBuilder(options ...func(*Builder)) *Builder {
+	configBuilder := &Builder{}
 	for _, option := range options {
 		option(configBuilder)
 	}
 	return configBuilder
 }
 
-func WithProviderRedirects() func(*ConfigBuilder) {
-	return func(builder *ConfigBuilder) {
+func WithProviderRedirects() func(*Builder) {
+	return func(builder *Builder) {
 		builder.IncludeProviderRedirects = true
 	}
 }
@@ -49,7 +49,7 @@ type Config struct {
 // BuildConfig will build a configuration object for the application. This
 // includes loading secrets from AWS Secrets Manager, and configuring the
 // AWS SDK.
-func (c ConfigBuilder) BuildConfig(ctx context.Context, xraySegmentName string) (config *Config, err error) {
+func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (config *Config, err error) {
 	if err = xray.Configure(xray.Config{ServiceVersion: "1.2.3"}); err != nil {
 		err = fmt.Errorf("could not configure X-Ray: %w", err)
 		return
