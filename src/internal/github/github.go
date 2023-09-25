@@ -198,6 +198,7 @@ func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.Rea
 		if respErr != nil {
 			return fmt.Errorf("error downloading asset: %w", respErr)
 		}
+		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("unexpected status code when downloading asset: %d", resp.StatusCode)
