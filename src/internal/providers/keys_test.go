@@ -24,7 +24,7 @@ func TestKeysForNamespace(t *testing.T) {
 			t.Fatalf("expected key ID to be E302FB5AA29D88F7, got %s", keys[0].KeyID)
 		}
 
-		if !strings.HasPrefix(keys[0].AsciiArmor, "-----BEGIN PGP PUBLIC KEY BLOCK-----") {
+		if !strings.HasPrefix(keys[0].ASCIIArmor, "-----BEGIN PGP PUBLIC KEY BLOCK-----") {
 			t.Fatalf("expected key to have ascii armor, got empty string")
 		}
 	})

@@ -2,6 +2,7 @@ package providercache
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -20,7 +21,7 @@ func (p *Handler) GetItem(ctx context.Context, key string) (*VersionListingItem,
 
 	// check if the item is empty, if so return nil, this makes it easier to consume in other places
 	if len(result.Item) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // This is not an error, it just means there is no manifest.
 	}
 
 	var item VersionListingItem

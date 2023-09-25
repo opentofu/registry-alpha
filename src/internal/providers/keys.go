@@ -81,11 +81,11 @@ func buildKey(path string) (*GPGPublicKey, error) {
 
 	key, err := crypto.NewKeyFromArmored(asciiArmor)
 	if err != nil {
-		return nil, fmt.Errorf("could not build public key from ascii armor: %v", err)
+		return nil, fmt.Errorf("could not build public key from ascii armor: %w", err)
 	}
 
 	return &GPGPublicKey{
-		AsciiArmor: asciiArmor,
+		ASCIIArmor: asciiArmor,
 		KeyID:      strings.ToUpper(key.GetHexKeyID()),
 	}, nil
 }

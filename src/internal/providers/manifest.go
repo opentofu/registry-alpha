@@ -3,8 +3,9 @@ package providers
 import (
 	"context"
 	"encoding/json"
-	"github.com/opentffoundation/registry/internal/github"
 	"io"
+
+	"github.com/opentffoundation/registry/internal/github"
 )
 
 type Manifest struct {
@@ -18,7 +19,7 @@ type ManifestMetadata struct {
 func findAndParseManifest(ctx context.Context, assets []github.ReleaseAsset) (*Manifest, error) {
 	manifestAsset := github.FindAssetBySuffix(assets, "_manifest.json")
 	if manifestAsset == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil // This is not an error, it just means there is no manifest.
 	}
 
 	assetContents, err := github.DownloadAssetContents(ctx, manifestAsset.DownloadURL)

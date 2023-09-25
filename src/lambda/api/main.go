@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/opentffoundation/registry/internal/config"
@@ -10,7 +11,7 @@ import (
 type LambdaFunc func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)
 
 func main() {
-	configBuilder := config.NewConfigBuilder(config.WithProviderRedirects())
+	configBuilder := config.NewBuilder(config.WithProviderRedirects())
 
 	config, err := configBuilder.BuildConfig(context.Background(), "registry.buildconfig")
 	if err != nil {

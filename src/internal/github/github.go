@@ -39,6 +39,7 @@ type GHRelease struct {
 	IsLatest     bool     // Indicates if the release is the latest.
 	IsPrerelease bool     // Indicates if the release is a prerelease.
 	TagCommit    struct { // The commit associated with the release tag.
+		//nolint: revive, stylecheck // This is a struct provided by the GitHub GraphQL API.
 		TarballUrl string // The URL to download the release tarball.
 	}
 }
@@ -68,7 +69,7 @@ func RepositoryExists(ctx context.Context, managedGhClient *github.Client, names
 		return nil
 	})
 
-	return
+	return exists, err
 }
 
 func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name, versionNumber string) (release *GHRelease, err error) {
@@ -81,8 +82,7 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 
 		for {
 			nodes, endCursor, fetchErr := FetchReleaseNodes(tracedCtx, ghClient, variables)
-
-			if err != nil {
+			if fetchErr != nil {
 				return fmt.Errorf("failed to fetch release nodes: %w", fetchErr)
 			}
 
@@ -92,7 +92,8 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 				}
 
 				if r.TagName == fmt.Sprintf("v%s", versionNumber) {
-					release = &r
+					rCopy := r
+					release = &rCopy
 					return nil
 				}
 			}
@@ -106,7 +107,7 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 		return nil
 	})
 
-	return
+	return release, err
 }
 
 func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, name string) (releases []GHRelease, err error) {
@@ -140,7 +141,7 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 		return nil
 	})
 
-	return
+	return releases, err
 }
 
 func initVariables(namespace, name string) map[string]interface{} {
@@ -172,7 +173,7 @@ func FetchReleaseNodes(ctx context.Context, ghClient *githubv4.Client, variables
 		return nil
 	})
 
-	return
+	return releases, endCursor, err
 }
 
 func FindAssetBySuffix(assets []ReleaseAsset, suffix string) *ReleaseAsset {
@@ -184,8 +185,10 @@ func FindAssetBySuffix(assets []ReleaseAsset, suffix string) *ReleaseAsset {
 	return nil
 }
 
+const githubAssetDownloadTimeout = 60 * time.Second
+
 func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.ReadCloser, err error) {
-	httpClient := xray.Client(&http.Client{Timeout: 60 * time.Second})
+	httpClient := xray.Client(&http.Client{Timeout: githubAssetDownloadTimeout})
 
 	err = xray.Capture(ctx, "github.asset.download", func(tracedCtx context.Context) error {
 		req, reqErr := http.NewRequestWithContext(tracedCtx, http.MethodGet, downloadURL, nil)
@@ -197,6 +200,7 @@ func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.Rea
 		if respErr != nil {
 			return fmt.Errorf("error downloading asset: %w", respErr)
 		}
+		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("unexpected status code when downloading asset: %d", resp.StatusCode)
@@ -207,5 +211,5 @@ func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.Rea
 		return nil
 	})
 
-	return
+	return body, err
 }

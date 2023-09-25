@@ -39,7 +39,7 @@ func getShaSum(ctx context.Context, downloadURL string, filename string) (shaSum
 	return
 }
 
-func getSupportedArchAndOS(assets []github.ReleaseAsset) ([]platform.Platform, error) {
+func getSupportedArchAndOS(assets []github.ReleaseAsset) []platform.Platform {
 	var platforms []platform.Platform
 	for _, asset := range assets {
 		platform := platform.ExtractPlatformFromArtifact(asset.Name)
@@ -48,5 +48,5 @@ func getSupportedArchAndOS(assets []github.ReleaseAsset) ([]platform.Platform, e
 		}
 		platforms = append(platforms, *platform)
 	}
-	return platforms, nil
+	return platforms
 }

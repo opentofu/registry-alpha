@@ -11,6 +11,11 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
+type versionResult struct {
+	Version Version
+	Err     error
+}
+
 // GetVersions fetches and returns a list of available versions of a given  provider hosted on GitHub.
 // The returned versions also include information about supported platforms and the Terraform protocol versions they are compatible with.
 //
@@ -22,11 +27,6 @@ import (
 //
 // Returns a slice of Version structures detailing each available version. If an error occurs during fetching or processing, it returns an error.
 func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []Version, err error) {
-	type versionResult struct {
-		Version Version
-		Err     error
-	}
-
 	err = xray.Capture(ctx, "provider.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
@@ -44,42 +44,7 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 			wg.Add(1)
 			go func(r github.GHRelease) {
 				defer wg.Done()
-				result := versionResult{}
-
-				assets := r.ReleaseAssets.Nodes
-				platforms, platformsErr := getSupportedArchAndOS(assets)
-				if platformsErr != nil {
-					result.Err = fmt.Errorf("failed to get supported platforms: %w", platformsErr)
-					versionCh <- result
-					return
-				}
-
-				// if there are no platforms, we can't do anything with this release
-				// so, we should just skip
-
-				if len(platforms) == 0 {
-					return
-				}
-
-				manifest, manifestErr := findAndParseManifest(tracedCtx, assets)
-				if manifestErr != nil {
-					result.Err = fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
-					versionCh <- result
-					return
-				}
-
-				result.Version = Version{
-					Version:   strings.TrimPrefix(r.TagName, "v"),
-					Platforms: platforms,
-				}
-
-				if manifest != nil {
-					result.Version.Protocols = manifest.Metadata.ProtocolVersions
-				} else {
-					result.Version.Protocols = []string{"5.0"}
-				}
-
-				versionCh <- result
+				getVersionFromGithubRelease(tracedCtx, r, versionCh)
 			}(release)
 		}
 
@@ -90,7 +55,10 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		for vr := range versionCh {
 			if vr.Err != nil {
 				// we don't want to fail the entire operation if one version fails, just trace the error and continue
-				xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
+				xrayErr := xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
+				if xrayErr != nil {
+					return fmt.Errorf("failed to add error to trace: %w", err)
+				}
 			}
 			if vr.Version.Version != "" {
 				versions = append(versions, vr.Version)
@@ -100,7 +68,44 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		return nil
 	})
 
-	return
+	return versions, err
+}
+
+// getVersionFromGithubRelease fetches and returns detailed information about a specific version of a provider hosted on GitHub.
+// all results are passed back to the versionCh channel.
+func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versionCh chan versionResult) {
+	result := versionResult{}
+
+	assets := r.ReleaseAssets.Nodes
+	platforms := getSupportedArchAndOS(assets)
+
+	// if there are no platforms, we can't do anything with this release
+	// so, we should just skip
+	if len(platforms) == 0 {
+		return
+	}
+
+	result.Version = Version{
+		Version:   strings.TrimPrefix(r.TagName, "v"),
+		Platforms: platforms,
+	}
+
+	// Read the manifest so that we can get the protocol versions.
+	manifest, manifestErr := findAndParseManifest(ctx, assets)
+	if manifestErr != nil {
+		result.Err = fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
+		versionCh <- result
+		return
+	}
+
+	// attach the protocol versions to the version result
+	if manifest != nil {
+		result.Version.Protocols = manifest.Metadata.ProtocolVersions
+	} else {
+		result.Version.Protocols = []string{"5.0"}
+	}
+
+	versionCh <- result
 }
 
 // GetVersion fetches and returns detailed information about a specific version of a provider hosted on GitHub.
@@ -112,17 +117,17 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 // - namespace: The GitHub namespace (typically, the organization or user) under which the provider repository is hosted.
 // - name: The name of the provider without the "terraform-provider-" prefix.
 // - version: The specific version of the Terraform provider to fetch details for.
-// - OS: The operating system for which the provider binary is intended.
+// - os: The operating system for which the provider binary is intended.
 // - arch: The architecture for which the provider binary is intended.
 //
 // Returns a VersionDetails structure with detailed information about the specified version. If an error occurs during fetching or processing, it returns an error.
 
-func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, version string, OS string, arch string) (versionDetails *VersionDetails, err error) {
+func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, version string, os string, arch string) (versionDetails *VersionDetails, err error) {
 	err = xray.Capture(ctx, "provider.versiondetails", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
 		xray.AddAnnotation(tracedCtx, "version", version)
-		xray.AddAnnotation(tracedCtx, "OS", OS)
+		xray.AddAnnotation(tracedCtx, "OS", os)
 		xray.AddAnnotation(tracedCtx, "arch", arch)
 
 		// Fetch the specific release for the given version.
@@ -137,7 +142,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 
 		// Initialize the VersionDetails struct.
 		versionDetails = &VersionDetails{
-			OS:   OS,
+			OS:   os,
 			Arch: arch,
 		}
 
@@ -156,7 +161,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		}
 
 		// Identify the appropriate asset for download based on OS and architecture.
-		assetToDownload := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", OS, arch))
+		assetToDownload := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", os, arch))
 		if assetToDownload == nil {
 			return fmt.Errorf("could not find asset to download")
 		}
@@ -193,5 +198,5 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		return nil
 	})
 
-	return
+	return versionDetails, err
 }

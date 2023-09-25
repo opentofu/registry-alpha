@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+
 	"github.com/opentffoundation/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -41,7 +43,7 @@ func listModuleVersions(config config.Config) LambdaFunc {
 		// check the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
 		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 		if !exists {
 			return NotFoundResponse, nil
@@ -50,7 +52,7 @@ func listModuleVersions(config config.Config) LambdaFunc {
 		// fetch all the versions
 		versions, err := modules.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, repoName)
 		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 
 		response := ListModuleVersionsResponse{
@@ -63,8 +65,8 @@ func listModuleVersions(config config.Config) LambdaFunc {
 
 		resBody, err := json.Marshal(response)
 		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
-		return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
 	}
 }

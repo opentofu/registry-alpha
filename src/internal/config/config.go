@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
@@ -13,23 +15,22 @@ import (
 	"github.com/opentffoundation/registry/internal/providers/providercache"
 	"github.com/opentffoundation/registry/internal/secrets"
 	"github.com/shurcooL/githubv4"
-	"os"
 )
 
-type ConfigBuilder struct {
+type Builder struct {
 	IncludeProviderRedirects bool
 }
 
-func NewConfigBuilder(options ...func(*ConfigBuilder)) *ConfigBuilder {
-	configBuilder := &ConfigBuilder{}
+func NewBuilder(options ...func(*Builder)) *Builder {
+	configBuilder := &Builder{}
 	for _, option := range options {
 		option(configBuilder)
 	}
 	return configBuilder
 }
 
-func WithProviderRedirects() func(*ConfigBuilder) {
-	return func(builder *ConfigBuilder) {
+func WithProviderRedirects() func(*Builder) {
+	return func(builder *Builder) {
 		builder.IncludeProviderRedirects = true
 	}
 }
@@ -48,10 +49,10 @@ type Config struct {
 // BuildConfig will build a configuration object for the application. This
 // includes loading secrets from AWS Secrets Manager, and configuring the
 // AWS SDK.
-func (c ConfigBuilder) BuildConfig(ctx context.Context, xraySegmentName string) (config *Config, err error) {
+func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (config *Config, err error) {
 	if err = xray.Configure(xray.Config{ServiceVersion: "1.2.3"}); err != nil {
 		err = fmt.Errorf("could not configure X-Ray: %w", err)
-		return
+		return nil, err
 	}
 
 	// At this point we're not part of a Lambda request execution, so let's
@@ -63,7 +64,7 @@ func (c ConfigBuilder) BuildConfig(ctx context.Context, xraySegmentName string) 
 	awsConfig, err = awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
 		err = fmt.Errorf("could not load AWS configuration: %w", err)
-		return
+		return nil, err
 	}
 
 	secretsHandler := secrets.NewHandler(awsConfig)
@@ -71,14 +72,13 @@ func (c ConfigBuilder) BuildConfig(ctx context.Context, xraySegmentName string) 
 	githubAPIToken, err := secretsHandler.GetSecretValueFromEnvReference(ctx, "GITHUB_TOKEN_SECRET_ASM_NAME")
 	if err != nil {
 		err = fmt.Errorf("could not get GitHub API token: %w", err)
-		return
+		return nil, err
 	}
 
-	var tableName string
-	tableName = os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
+	tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
 	if tableName == "" {
 		err = fmt.Errorf("PROVIDER_VERSIONS_TABLE_NAME environment variable not set")
-		return
+		return nil, err
 	}
 
 	providerRedirects := make(map[string]string)
@@ -100,7 +100,7 @@ func (c ConfigBuilder) BuildConfig(ctx context.Context, xraySegmentName string) 
 
 		ProviderRedirects: providerRedirects,
 	}
-	return
+	return config, nil
 }
 
 // EffectiveProviderNamespace will map namespaces for providers in situations
