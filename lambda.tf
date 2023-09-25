@@ -1,6 +1,6 @@
 resource "null_resource" "api_function_binary" {
   provisioner "local-exec" {
-    command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -ldflags='-s -w' -o ../registry-handler ./lambda/api"
+    command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -tags lambda.norpc -ldflags='-s -w' -o ../api_function_bootstrap/bootstrap ./lambda/api"
     working_dir = "./src"
   }
 
@@ -11,7 +11,7 @@ resource "null_resource" "api_function_binary" {
 
 resource "null_resource" "populate_provider_versions_binary" {
   provisioner "local-exec" {
-    command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -ldflags='-s -w' -o ../populate-provider-versions ./lambda/populate_provider_versions"
+    command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -tags lambda.norpc -ldflags='-s -w' -o ../populate_provider_versions_bootstrap/bootstrap ./lambda/populate_provider_versions"
     working_dir = "./src"
   }
 
@@ -24,16 +24,16 @@ data "archive_file" "api_function_archive" {
   depends_on = [null_resource.api_function_binary]
 
   type        = "zip"
-  source_file = "registry-handler"
-  output_path = "api.zip"
+  source_file = "./api_function_bootstrap/bootstrap"
+  output_path = "api_bootstrap.zip"
 }
 
 data "archive_file" "populate_provider_versions_archive" {
   depends_on = [null_resource.populate_provider_versions_binary]
 
   type        = "zip"
-  source_file = "populate-provider-versions"
-  output_path = "populateproviderversions.zip"
+  source_file = "./populate_provider_versions_bootstrap/bootstrap"
+  output_path = "populate_provider_versions_bootstrap.zip"
 }
 
 // create the lambda function from zip file
@@ -48,7 +48,7 @@ resource "aws_lambda_function" "api_function" {
   filename         = data.archive_file.api_function_archive.output_path
   source_code_hash = data.archive_file.api_function_archive.output_base64sha256
 
-  runtime = "go1.x"
+  runtime = "provided.al2"
 
   publish = true
 
@@ -85,7 +85,7 @@ resource "aws_lambda_function" "populate_provider_versions_function" {
   filename         = data.archive_file.populate_provider_versions_archive.output_path
   source_code_hash = data.archive_file.api_function_archive.output_base64sha256
 
-  runtime = "go1.x"
+  runtime = "provided.al2"
 
   tracing_config {
     mode = "Active"

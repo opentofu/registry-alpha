@@ -34,12 +34,11 @@ override.tf.json
 terraform.rc
 
 # Build artifacts
-archive.zip
-api.zip
-registry-handler
+populate_provider_versions_bootstrap
+populate_provider_versions_bootstrap.zip
 
-populateproviderversions.zip
-populate-provider-versions
+api_function_bootstrap
+api_bootstrap.zip
 
 # JetBrains folder
 .idea
