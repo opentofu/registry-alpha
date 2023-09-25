@@ -25,7 +25,7 @@ func NewHandler(awsConfig aws.Config, tableName string) *Handler {
 	}
 }
 
-const AllowedAge = 1 * time.Hour
+const AllowedAge = (1 * time.Hour) - (5 * time.Minute) //nolint:gomnd // 55 minutes
 
 type VersionListingItem struct {
 	Provider    string              `dynamodbav:"provider"`
