@@ -1,6 +1,8 @@
 package providers
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestFindShaSum(t *testing.T) {
 	contents := `0002dd4c79453da5bf1bb9c52172a25d042a571f6df131b7c9ced3d1f8f3eb44  terraform-provider-random_3.5.1_linux_386.zip
@@ -21,5 +23,3 @@ eb583d8f03b11f0b6c535375d8ed0d29e5f7f537b5c78943856d2e8ce76482d9  terraform-prov
 		t.Fatal("shaSum not found")
 	}
 }
-
-
