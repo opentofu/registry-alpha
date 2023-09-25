@@ -71,7 +71,7 @@ func processDocument(ctx context.Context, document *providercache.VersionListing
 
 	if document.LastUpdated.After(time.Now().Add(-providerCacheAge)) {
 		fmt.Printf("Document is recent enough, returning it\n")
-		return versionsResponse(document.Versions, nil)
+		return versionsResponse(document.Versions)
 	}
 
 	fmt.Printf("Document is too old, invoking lambda to update dynamodb\n")
@@ -79,7 +79,7 @@ func processDocument(ctx context.Context, document *providercache.VersionListing
 		fmt.Printf("Error triggering lambda to update dynamodb: %s\n", err.Error())
 	}
 
-	return versionsResponse(document.Versions, nil)
+	return versionsResponse(document.Versions)
 }
 
 func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoName string) (events.APIGatewayProxyResponse, error) {
@@ -90,7 +90,7 @@ func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoN
 		return events.APIGatewayProxyResponse{StatusCode: 500}, err
 	}
 
-	return versionsResponse(versions, err)
+	return versionsResponse(versions)
 }
 
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
@@ -107,7 +107,7 @@ func triggerPopulateProviderVersions(ctx context.Context, config config.Config, 
 	return nil
 }
 
-func versionsResponse(versions []providers.Version, err error) (events.APIGatewayProxyResponse, error) {
+func versionsResponse(versions []providers.Version) (events.APIGatewayProxyResponse, error) {
 	response := ListProviderVersionsResponse{
 		Versions: versions,
 	}
