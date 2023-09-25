@@ -91,7 +91,8 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 				}
 
 				if r.TagName == fmt.Sprintf("v%s", versionNumber) {
-					release = &r
+					rCopy := r
+					release = &rCopy
 					return nil
 				}
 			}
