@@ -8,6 +8,8 @@ import (
 	"github.com/opentffoundation/registry/internal/config"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
+	"github.com/opentffoundation/registry/internal/providers/providercache"
+	"time"
 )
 
 type PopulateProviderVersionsEvent struct {
@@ -39,6 +41,20 @@ func HandleRequest(config *config.Config) LambdaFunc {
 			err := e.Validate()
 			if err != nil {
 				return fmt.Errorf("invalid event: %w", err)
+			}
+
+			// check if the document exists in dynamodb, if it does, and it's newer than the allowed max age,
+			// we should treat it as a noop and just return
+			document, err := config.ProviderVersionCache.GetItem(tracedCtx, fmt.Sprintf("%s/%s", e.Namespace, e.Type))
+			if err != nil {
+				// if there was an error getting the document, that's fine. we'll just log it and carry on
+				fmt.Printf("Error: failed to get item from cache: %s", err.Error())
+			}
+			if document != nil {
+				if document.LastUpdated.After(time.Now().Add(-providercache.AllowedAge)) {
+					fmt.Printf("Document is up to date, not updating\n")
+					return nil
+				}
 			}
 
 			// Construct the repo name.
