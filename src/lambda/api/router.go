@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"regexp"
+
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentffoundation/registry/internal/config"
-	"regexp"
 
 	"github.com/aws/aws-lambda-go/events"
 )

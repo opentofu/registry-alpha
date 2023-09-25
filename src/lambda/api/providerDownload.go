@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/opentffoundation/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"

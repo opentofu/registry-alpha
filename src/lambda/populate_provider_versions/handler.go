@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentffoundation/registry/internal/config"
 	"github.com/opentffoundation/registry/internal/github"

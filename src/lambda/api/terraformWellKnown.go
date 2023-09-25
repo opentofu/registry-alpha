@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/opentffoundation/registry/internal/config"
 )

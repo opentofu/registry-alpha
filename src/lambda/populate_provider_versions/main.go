@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/opentffoundation/registry/internal/config"
 )
