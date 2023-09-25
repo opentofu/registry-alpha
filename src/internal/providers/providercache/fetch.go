@@ -21,7 +21,7 @@ func (p *Handler) GetItem(ctx context.Context, key string) (*VersionListingItem,
 
 	// check if the item is empty, if so return nil, this makes it easier to consume in other places
 	if len(result.Item) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // This is not an error, it just means there is no manifest.
 	}
 
 	var item VersionListingItem
