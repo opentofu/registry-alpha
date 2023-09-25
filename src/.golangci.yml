@@ -44,7 +44,6 @@ linters:
     - goconst
     - gocritic
     - gocyclo
-    - godot
     - goimports
     - gomnd
     - gomoddirectives
