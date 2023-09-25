@@ -81,8 +81,7 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 
 		for {
 			nodes, endCursor, fetchErr := FetchReleaseNodes(tracedCtx, ghClient, variables)
-
-			if err != nil {
+			if fetchErr != nil {
 				return fmt.Errorf("failed to fetch release nodes: %w", fetchErr)
 			}
 

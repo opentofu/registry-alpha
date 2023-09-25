@@ -2,11 +2,12 @@ package github
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/google/go-github/v54/github"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
-	"net/http"
 )
 
 func getGithubOauth2Client(token string) *http.Client {

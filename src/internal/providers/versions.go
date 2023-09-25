@@ -90,7 +90,10 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		for vr := range versionCh {
 			if vr.Err != nil {
 				// we don't want to fail the entire operation if one version fails, just trace the error and continue
-				xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
+				xrayErr := xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
+				if xrayErr != nil {
+					return fmt.Errorf("failed to add error to trace: %w", err)
+				}
 			}
 			if vr.Version.Version != "" {
 				versions = append(versions, vr.Version)

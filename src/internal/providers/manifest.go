@@ -3,8 +3,9 @@ package providers
 import (
 	"context"
 	"encoding/json"
-	"github.com/opentffoundation/registry/internal/github"
 	"io"
+
+	"github.com/opentffoundation/registry/internal/github"
 )
 
 type Manifest struct {
