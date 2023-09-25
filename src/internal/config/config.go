@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
@@ -13,7 +15,6 @@ import (
 	"github.com/opentffoundation/registry/internal/providers/providercache"
 	"github.com/opentffoundation/registry/internal/secrets"
 	"github.com/shurcooL/githubv4"
-	"os"
 )
 
 type ConfigBuilder struct {

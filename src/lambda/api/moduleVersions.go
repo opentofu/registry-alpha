@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/opentffoundation/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"
