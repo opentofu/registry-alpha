@@ -69,7 +69,7 @@ func RepositoryExists(ctx context.Context, managedGhClient *github.Client, names
 		return nil
 	})
 
-	return
+	return exists, err
 }
 
 func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name, versionNumber string) (release *GHRelease, err error) {
@@ -107,7 +107,7 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 		return nil
 	})
 
-	return
+	return release, err
 }
 
 func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, name string) (releases []GHRelease, err error) {
@@ -141,7 +141,7 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 		return nil
 	})
 
-	return
+	return releases, err
 }
 
 func initVariables(namespace, name string) map[string]interface{} {
@@ -173,7 +173,7 @@ func FetchReleaseNodes(ctx context.Context, ghClient *githubv4.Client, variables
 		return nil
 	})
 
-	return
+	return releases, endCursor, err
 }
 
 func FindAssetBySuffix(assets []ReleaseAsset, suffix string) *ReleaseAsset {
@@ -209,5 +209,5 @@ func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.Rea
 		return nil
 	})
 
-	return
+	return body, err
 }

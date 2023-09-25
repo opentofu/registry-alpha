@@ -68,7 +68,7 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		return nil
 	})
 
-	return
+	return versions, err
 }
 
 // getVersionFromGithubRelease fetches and returns detailed information about a specific version of a provider hosted on GitHub.
@@ -203,5 +203,5 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		return nil
 	})
 
-	return
+	return versionDetails, err
 }

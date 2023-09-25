@@ -32,5 +32,5 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		return nil
 	})
 
-	return
+	return versions, err
 }

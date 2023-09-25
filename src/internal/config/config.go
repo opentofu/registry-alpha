@@ -52,7 +52,7 @@ type Config struct {
 func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (config *Config, err error) {
 	if err = xray.Configure(xray.Config{ServiceVersion: "1.2.3"}); err != nil {
 		err = fmt.Errorf("could not configure X-Ray: %w", err)
-		return
+		return nil, err
 	}
 
 	// At this point we're not part of a Lambda request execution, so let's
@@ -64,7 +64,7 @@ func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (confi
 	awsConfig, err = awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
 		err = fmt.Errorf("could not load AWS configuration: %w", err)
-		return
+		return nil, err
 	}
 
 	secretsHandler := secrets.NewHandler(awsConfig)
@@ -72,14 +72,14 @@ func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (confi
 	githubAPIToken, err := secretsHandler.GetSecretValueFromEnvReference(ctx, "GITHUB_TOKEN_SECRET_ASM_NAME")
 	if err != nil {
 		err = fmt.Errorf("could not get GitHub API token: %w", err)
-		return
+		return nil, err
 	}
 
 	var tableName string
 	tableName = os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
 	if tableName == "" {
 		err = fmt.Errorf("PROVIDER_VERSIONS_TABLE_NAME environment variable not set")
-		return
+		return nil, err
 	}
 
 	providerRedirects := make(map[string]string)
@@ -101,7 +101,7 @@ func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (confi
 
 		ProviderRedirects: providerRedirects,
 	}
-	return
+	return config, nil
 }
 
 // EffectiveProviderNamespace will map namespaces for providers in situations
