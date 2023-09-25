@@ -60,7 +60,6 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - lll
     - loggercheck
     - makezero
     - mirror
