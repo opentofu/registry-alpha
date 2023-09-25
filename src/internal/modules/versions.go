@@ -11,7 +11,7 @@ import (
 	"github.com/opentffoundation/registry/internal/github"
 )
 
-// TODO: doc
+// GetVersions fetches a list of versions for a GitHub repository identified by its namespace and name.
 func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []Version, err error) {
 	err = xray.Capture(ctx, "module.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
