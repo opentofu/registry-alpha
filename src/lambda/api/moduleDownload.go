@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/opentffoundation/registry/internal/config"
 
@@ -28,14 +29,14 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 		// check if the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
 		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 
 		if !exists {
 			return NotFoundResponse, nil
 		}
 
-		return events.APIGatewayProxyResponse{StatusCode: 200, Body: "", Headers: map[string]string{
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: "", Headers: map[string]string{
 			"X-Terraform-Get": fmt.Sprintf("git::https://github.com/%s/%s?ref=v%s", params.Namespace, repoName, params.Version),
 		}}, nil
 	}

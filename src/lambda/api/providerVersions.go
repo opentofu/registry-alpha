@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -51,7 +52,7 @@ func listProviderVersions(config config.Config) LambdaFunc {
 		if exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName); !exists {
 			if err != nil {
 				fmt.Printf("Error checking if repo exists: %s\n", err.Error())
-				return events.APIGatewayProxyResponse{StatusCode: 500}, err
+				return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 			}
 			fmt.Printf("Repo %s/%s does not exist\n", effectiveNamespace, repoName)
 			// if the repo doesn't exist, there's no point in trying to fetch versions
@@ -88,7 +89,7 @@ func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoN
 
 	versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, namespace, repoName)
 	if err != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
 	return versionsResponse(versions)
@@ -115,8 +116,8 @@ func versionsResponse(versions []providers.Version) (events.APIGatewayProxyRespo
 
 	resBody, err := json.Marshal(response)
 	if err != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
+	return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
 }

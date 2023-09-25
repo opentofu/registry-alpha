@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/opentffoundation/registry/internal/config"
 
@@ -42,7 +43,7 @@ func downloadProviderVersion(config config.Config) LambdaFunc {
 		// check the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName)
 		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 		if !exists {
 			return NotFoundResponse, nil
@@ -52,13 +53,13 @@ func downloadProviderVersion(config config.Config) LambdaFunc {
 		if err != nil {
 			// log the error too for dev
 			fmt.Printf("error fetching version: %s\n", err)
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 
 		resBody, err := json.Marshal(versionDownloadResponse)
 		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: 500}, err
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
-		return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(resBody)}, nil
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
 	}
 }

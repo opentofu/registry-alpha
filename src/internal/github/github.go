@@ -185,8 +185,10 @@ func FindAssetBySuffix(assets []ReleaseAsset, suffix string) *ReleaseAsset {
 	return nil
 }
 
+const githubAssetDownloadTimeout = 60 * time.Second
+
 func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.ReadCloser, err error) {
-	httpClient := xray.Client(&http.Client{Timeout: 60 * time.Second})
+	httpClient := xray.Client(&http.Client{Timeout: githubAssetDownloadTimeout})
 
 	err = xray.Capture(ctx, "github.asset.download", func(tracedCtx context.Context) error {
 		req, reqErr := http.NewRequestWithContext(tracedCtx, http.MethodGet, downloadURL, nil)
