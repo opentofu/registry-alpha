@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentffoundation/registry/internal/config"
 	"github.com/opentffoundation/registry/internal/github"
 	"github.com/opentffoundation/registry/internal/providers"
 	"github.com/opentffoundation/registry/internal/providers/providercache"
-	"time"
 )
 
 type PopulateProviderVersionsEvent struct {
@@ -51,8 +51,7 @@ func HandleRequest(config *config.Config) LambdaFunc {
 				fmt.Printf("Error: failed to get item from cache: %s", err.Error())
 			}
 			if document != nil {
-				oldestAllowedAge := time.Now().Add(-providercache.AllowedAge)
-				if document.LastUpdated.After(oldestAllowedAge) {
+				if time.Since(document.LastUpdated) < providercache.AllowedAge {
 					fmt.Printf("Document is up to date, not updating\n")
 					return nil
 				}
