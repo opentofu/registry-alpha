@@ -39,7 +39,7 @@ type GHRelease struct {
 	IsLatest     bool     // Indicates if the release is the latest.
 	IsPrerelease bool     // Indicates if the release is a prerelease.
 	TagCommit    struct { // The commit associated with the release tag.
-		// nolint: revive // This is a struct provided by the GitHub GraphQL API.
+		// nolint: revive, stylecheck // This is a struct provided by the GitHub GraphQL API.
 		TarballUrl string // The URL to download the release tarball.
 	}
 }
