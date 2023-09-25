@@ -77,12 +77,7 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 	result := versionResult{}
 
 	assets := r.ReleaseAssets.Nodes
-	platforms, platformsErr := getSupportedArchAndOS(assets)
-	if platformsErr != nil {
-		result.Err = fmt.Errorf("failed to get supported platforms: %w", platformsErr)
-		versionCh <- result
-		return
-	}
+	platforms := getSupportedArchAndOS(assets)
 
 	// if there are no platforms, we can't do anything with this release
 	// so, we should just skip
