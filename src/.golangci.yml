@@ -12,8 +12,15 @@ linters-settings:
       - switch
       - map
 
+  funlen:
+    lines: 100
+    statements: 50
+    ignore-comments: true
+
   govet:
     enable-all: true
+    disable:
+      - fieldalignment # rule is too strict
 
   nolintlint:
     require-explanation: true
