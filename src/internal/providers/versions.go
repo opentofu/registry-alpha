@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
-	"github.com/opentffoundation/registry/internal/github"
+	"github.com/opentofu/registry/internal/github"
 	"github.com/shurcooL/githubv4"
 )
 

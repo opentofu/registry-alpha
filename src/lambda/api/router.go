@@ -7,7 +7,7 @@ import (
 	"regexp"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
-	"github.com/opentffoundation/registry/internal/config"
+	"github.com/opentofu/registry/internal/config"
 
 	"github.com/aws/aws-lambda-go/events"
 )
