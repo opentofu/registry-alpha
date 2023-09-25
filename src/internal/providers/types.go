@@ -36,5 +36,5 @@ type SigningKeys struct {
 // GPGPublicKey represents an individual GPG public key.
 type GPGPublicKey struct {
 	KeyID      string `json:"key_id"`      // The ID of the GPG key.
-	AsciiArmor string `json:"ascii_armor"` // The ASCII armored representation of the GPG public key.
+	ASCIIArmor string `json:"ascii_armor"` // The ASCII armored representation of the GPG public key.
 }

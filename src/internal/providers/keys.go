@@ -85,7 +85,7 @@ func buildKey(path string) (*GPGPublicKey, error) {
 	}
 
 	return &GPGPublicKey{
-		AsciiArmor: asciiArmor,
+		ASCIIArmor: asciiArmor,
 		KeyID:      strings.ToUpper(key.GetHexKeyID()),
 	}, nil
 }
