@@ -89,7 +89,7 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 		slog.Info("Finding release")
 
 		for {
-			nodes, endCursor, fetchErr := FetchReleaseNodes(tracedCtx, ghClient, variables)
+			nodes, endCursor, fetchErr := fetchReleaseNodes(tracedCtx, ghClient, variables)
 			if fetchErr != nil {
 				slog.Error("Failed to fetch release nodes", "error", fetchErr)
 				return fmt.Errorf("failed to fetch release nodes: %w", fetchErr)
@@ -135,7 +135,7 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 		slog.Info("Fetching releases")
 
 		for {
-			nodes, endCursor, fetchErr := FetchReleaseNodes(tracedCtx, ghClient, variables)
+			nodes, endCursor, fetchErr := fetchReleaseNodes(tracedCtx, ghClient, variables)
 			if fetchErr != nil {
 				slog.Error("Failed to fetch release nodes", "error", fetchErr)
 				return fmt.Errorf("failed to fetch release nodes: %w", fetchErr)
@@ -174,13 +174,13 @@ func initVariables(namespace, name string) map[string]interface{} {
 	}
 }
 
-// FetchReleaseNodes will fetch a page of releases from the github api and return the nodes, endCursor, and an error
+// fetchReleaseNodes will fetch a page of releases from the github api and return the nodes, endCursor, and an error
 // endCursor will be nil if there are no more pages
-func FetchReleaseNodes(ctx context.Context, ghClient *githubv4.Client, variables map[string]interface{}) (releases []GHRelease, endCursor *string, err error) {
+func fetchReleaseNodes(ctx context.Context, ghClient *githubv4.Client, variables map[string]interface{}) (releases []GHRelease, endCursor *string, err error) {
 	err = xray.Capture(ctx, "github.releases.nodes", func(tracedCtx context.Context) error {
 		var query GHRepository
 
-		if queryErr := ghClient.Query(tracedCtx, &query, variables); err != nil {
+		if queryErr := ghClient.Query(tracedCtx, &query, variables); queryErr != nil {
 			return fmt.Errorf("failed to query for releases: %w", queryErr)
 		}
 
