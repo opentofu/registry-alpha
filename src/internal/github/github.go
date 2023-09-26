@@ -198,7 +198,6 @@ func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.Rea
 
 		resp, respErr := httpClient.Do(req) //nolint:bodyclose // the caller is responsible for closing the body
 		if respErr != nil {
-			resp.Body.Close()
 			return fmt.Errorf("error downloading asset: %w", respErr)
 		}
 
