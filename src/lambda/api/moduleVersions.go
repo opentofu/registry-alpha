@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/opentofu/registry/internal/config"
+	"golang.org/x/exp/slog"
 
 	"github.com/aws/aws-lambda-go/events"
 
@@ -17,6 +18,15 @@ type ListModuleVersionsPathParams struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
 	System    string `json:"system"`
+}
+
+func (p ListModuleVersionsPathParams) AnnotateLogger() {
+	logger := slog.Default()
+	logger = logger.
+		With("namespace", p.Namespace).
+		With("name", p.Name).
+		With("system", p.System)
+	slog.SetDefault(logger)
 }
 
 func getListModuleVersionsPathParams(req events.APIGatewayProxyRequest) ListModuleVersionsPathParams {
@@ -38,6 +48,7 @@ type ModulesResponse struct {
 func listModuleVersions(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListModuleVersionsPathParams(req)
+		params.AnnotateLogger()
 		repoName := modules.GetRepoName(params.System, params.Name)
 
 		// check the repo exists
@@ -65,6 +76,7 @@ func listModuleVersions(config config.Config) LambdaFunc {
 
 		resBody, err := json.Marshal(response)
 		if err != nil {
+			slog.Error("Error marshalling response", "error", err)
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
