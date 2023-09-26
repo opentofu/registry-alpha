@@ -87,6 +87,10 @@ func HandleRequest(config *config.Config) LambdaFunc {
 			return "", err
 		}
 
+		if len(versions) == 0 {
+			return "", fmt.Errorf("no versions found")
+		}
+
 		key := fmt.Sprintf("%s/%s", e.Namespace, e.Type)
 
 		err = config.ProviderVersionCache.Store(ctx, key, versions)
