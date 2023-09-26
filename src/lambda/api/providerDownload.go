@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/opentofu/registry/internal/config"
+	"golang.org/x/exp/slog"
 
 	"github.com/aws/aws-lambda-go/events"
 
@@ -22,6 +22,17 @@ type DownloadHandlerPathParams struct {
 	Version      string `json:"version"`
 }
 
+func (p DownloadHandlerPathParams) AnnotateLogger() {
+	logger := slog.Default()
+	logger = logger.
+		With("namespace", p.Namespace).
+		With("type", p.Type).
+		With("version", p.Version).
+		With("os", p.OS).
+		With("arch", p.Architecture)
+	slog.SetDefault(logger)
+}
+
 func getDownloadPathParams(req events.APIGatewayProxyRequest) DownloadHandlerPathParams {
 	return DownloadHandlerPathParams{
 		Architecture: req.PathParameters["arch"],
@@ -35,6 +46,7 @@ func getDownloadPathParams(req events.APIGatewayProxyRequest) DownloadHandlerPat
 func downloadProviderVersion(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadPathParams(req)
+		params.AnnotateLogger()
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 
 		// Construct the repo name.
@@ -52,7 +64,7 @@ func downloadProviderVersion(config config.Config) LambdaFunc {
 		versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, repoName, params.Version, params.OS, params.Architecture)
 		if err != nil {
 			// log the error too for dev
-			fmt.Printf("error fetching version: %s\n", err)
+			slog.Error("Error getting version", "error", err)
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 

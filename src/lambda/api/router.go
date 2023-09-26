@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentofu/registry/internal/config"
+	"golang.org/x/exp/slog"
 
 	"github.com/aws/aws-lambda-go/events"
 )
@@ -49,14 +51,23 @@ func getRouteHandler(config config.Config, path string) LambdaFunc {
 func Router(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		ctx, segment := xray.BeginSubsegment(ctx, "registry.handle")
+
+		logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		logger = logger.
+			With("request_id", req.RequestContext.RequestID).
+			With("path", req.Path)
+		slog.SetDefault(logger)
+
 		handler := getRouteHandler(config, req.Path)
 		if handler == nil {
+			slog.Error("No route handler found for path")
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusNotFound, Body: fmt.Sprintf("No route handler found for path %s", req.Path)}, nil
 		}
 
 		response, err := handler(ctx, req)
 		segment.Close(err)
 
+		slog.Info("Returning response", "status_code", response.StatusCode)
 		return response, err
 	}
 }

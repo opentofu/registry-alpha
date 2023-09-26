@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/opentofu/registry/internal/github"
+	"golang.org/x/exp/slog"
 )
 
 type Manifest struct {
@@ -19,6 +20,7 @@ type ManifestMetadata struct {
 func findAndParseManifest(ctx context.Context, assets []github.ReleaseAsset) (*Manifest, error) {
 	manifestAsset := github.FindAssetBySuffix(assets, "_manifest.json")
 	if manifestAsset == nil {
+		slog.Warn("No manifest found in release assets")
 		return nil, nil //nolint:nilnil // This is not an error, it just means there is no manifest.
 	}
 
@@ -33,18 +35,22 @@ func findAndParseManifest(ctx context.Context, assets []github.ReleaseAsset) (*M
 		return nil, err
 	}
 
+	slog.Info("Found manifest")
+
 	return manifest, nil
 }
 
 func parseManifestContents(assetContents io.ReadCloser) (*Manifest, error) {
 	contents, err := io.ReadAll(assetContents)
 	if err != nil {
+		slog.Error("Failed to read manifest contents")
 		return nil, err
 	}
 
 	var manifest *Manifest
 	err = json.Unmarshal(contents, &manifest)
 	if err != nil {
+		slog.Error("Failed to parse manifest contents")
 		return nil, err
 	}
 

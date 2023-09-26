@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/google/go-github/v54/github"
 	"github.com/shurcooL/githubv4"
+	"golang.org/x/exp/slog"
 )
 
 // GHRepository encapsulates GitHub repository details with a focus on its releases.
@@ -57,14 +58,19 @@ func RepositoryExists(ctx context.Context, managedGhClient *github.Client, names
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
 
+		slog.Info("Checking if repository exists")
+
 		_, response, getErr := managedGhClient.Repositories.Get(tracedCtx, namespace, name)
 		if getErr != nil {
 			if response.StatusCode == http.StatusNotFound {
+				slog.Info("Repository does not exist")
 				return nil
 			}
+			slog.Error("Failed to get repository", "error", getErr)
 			return fmt.Errorf("failed to get repository: %w", getErr)
 		}
 
+		slog.Info("Repository exists")
 		exists = true
 		return nil
 	})
@@ -80,9 +86,12 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 
 		variables := initVariables(namespace, name)
 
+		slog.Info("Finding release")
+
 		for {
 			nodes, endCursor, fetchErr := FetchReleaseNodes(tracedCtx, ghClient, variables)
 			if fetchErr != nil {
+				slog.Error("Failed to fetch release nodes", "error", fetchErr)
 				return fmt.Errorf("failed to fetch release nodes: %w", fetchErr)
 			}
 
@@ -107,6 +116,12 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 		return nil
 	})
 
+	if release == nil {
+		slog.Info("Release not found")
+		return nil, err
+	}
+
+	slog.Info("Release found", "release", release)
 	return release, err
 }
 
@@ -117,9 +132,12 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 
 		variables := initVariables(namespace, name)
 
+		slog.Info("Fetching releases")
+
 		for {
 			nodes, endCursor, fetchErr := FetchReleaseNodes(tracedCtx, ghClient, variables)
 			if fetchErr != nil {
+				slog.Error("Failed to fetch release nodes", "error", fetchErr)
 				return fmt.Errorf("failed to fetch release nodes: %w", fetchErr)
 			}
 
@@ -132,6 +150,7 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 			}
 
 			if endCursor == nil {
+				slog.Info("All releases fetched")
 				break
 			}
 
@@ -141,6 +160,7 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 		return nil
 	})
 
+	slog.Info("Releases fetched", "count", len(releases))
 	return releases, err
 }
 
@@ -177,11 +197,14 @@ func FetchReleaseNodes(ctx context.Context, ghClient *githubv4.Client, variables
 }
 
 func FindAssetBySuffix(assets []ReleaseAsset, suffix string) *ReleaseAsset {
+	slog.Info("Finding asset by suffix", "suffix", suffix)
 	for _, asset := range assets {
 		if strings.HasSuffix(asset.Name, suffix) {
+			slog.Info("Asset found", "asset", asset)
 			return &asset
 		}
 	}
+	slog.Info("Asset not found")
 	return nil
 }
 
@@ -191,18 +214,22 @@ func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.Rea
 	httpClient := xray.Client(&http.Client{Timeout: githubAssetDownloadTimeout})
 
 	err = xray.Capture(ctx, "github.asset.download", func(tracedCtx context.Context) error {
+		slog.Info("Downloading asset", "url", downloadURL)
 		req, reqErr := http.NewRequestWithContext(tracedCtx, http.MethodGet, downloadURL, nil)
 		if reqErr != nil {
+			slog.Error("Failed to create request", "error", reqErr)
 			return fmt.Errorf("failed to create request: %w", reqErr)
 		}
 
 		resp, respErr := httpClient.Do(req)
 		if respErr != nil {
+			slog.Error("Error downloading asset", "error", respErr)
 			return fmt.Errorf("error downloading asset: %w", respErr)
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
+			slog.Error("Unexpected status code when downloading asset", "status_code", resp.StatusCode)
 			return fmt.Errorf("unexpected status code when downloading asset: %d", resp.StatusCode)
 		}
 
@@ -211,5 +238,6 @@ func DownloadAssetContents(ctx context.Context, downloadURL string) (body io.Rea
 		return nil
 	})
 
+	slog.Info("Asset downloaded successfully")
 	return body, err
 }

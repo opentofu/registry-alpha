@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentofu/registry/internal/github"
 	"github.com/shurcooL/githubv4"
+	"golang.org/x/exp/slog"
 )
 
 type versionResult struct {
@@ -30,6 +31,8 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 	err = xray.Capture(ctx, "provider.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
+
+		slog.Info("Fetching versions")
 
 		releases, releasesErr := github.FetchReleases(tracedCtx, ghClient, namespace, name)
 		if releasesErr != nil {
@@ -54,6 +57,7 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 
 		for vr := range versionCh {
 			if vr.Err != nil {
+				slog.Error("Failed to process some releases", "error", vr.Err)
 				// we don't want to fail the entire operation if one version fails, just trace the error and continue
 				xrayErr := xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
 				if xrayErr != nil {
@@ -68,6 +72,7 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		return nil
 	})
 
+	slog.Info("Successfully found versions", "versions", len(versions))
 	return versions, err
 }
 
@@ -130,6 +135,8 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		xray.AddAnnotation(tracedCtx, "OS", os)
 		xray.AddAnnotation(tracedCtx, "arch", arch)
 
+		slog.Info("Fetching version")
+
 		// Fetch the specific release for the given version.
 		release, releaseErr := github.FindRelease(tracedCtx, ghClient, namespace, name, version)
 		if releaseErr != nil {
@@ -153,10 +160,8 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		}
 
 		if manifest != nil {
-			xray.AddAnnotation(tracedCtx, "protocols", fmt.Sprintf("%v", manifest.Metadata.ProtocolVersions))
 			versionDetails.Protocols = manifest.Metadata.ProtocolVersions
 		} else {
-			xray.AddAnnotation(tracedCtx, "protocols", "default")
 			versionDetails.Protocols = []string{"5.0"}
 		}
 
@@ -173,6 +178,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		shasumsSigAsset := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, "_SHA256SUMS.sig")
 
 		if shaSumsAsset == nil || shasumsSigAsset == nil {
+			slog.Error("Could not find shasums or its signature asset")
 			return fmt.Errorf("could not find shasums or its signature asset")
 		}
 
@@ -182,12 +188,14 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		// Extract the SHA256 checksum for the asset to download.
 		shaSum, shaSumErr := getShaSum(tracedCtx, shaSumsAsset.DownloadURL, versionDetails.Filename)
 		if shaSumErr != nil {
+			slog.Error("Could not get shasum", "error", shaSumErr)
 			return fmt.Errorf("failed to get shasum: %w", shaSumErr)
 		}
 		versionDetails.SHASum = shaSum
 
 		publicKeys, keysErr := KeysForNamespace(namespace)
 		if keysErr != nil {
+			slog.Error("Could not get public keys", "error", keysErr)
 			return fmt.Errorf("failed to get public keys: %w", keysErr)
 		}
 
@@ -198,5 +206,6 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		return nil
 	})
 
+	slog.Info("Successfully found version details")
 	return versionDetails, err
 }

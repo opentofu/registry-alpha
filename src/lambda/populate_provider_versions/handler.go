@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
@@ -10,6 +11,7 @@ import (
 	"github.com/opentofu/registry/internal/github"
 	"github.com/opentofu/registry/internal/providers"
 	"github.com/opentofu/registry/internal/providers/providercache"
+	"golang.org/x/exp/slog"
 )
 
 type PopulateProviderVersionsEvent struct {
@@ -29,17 +31,28 @@ func (p PopulateProviderVersionsEvent) Validate() error {
 
 type LambdaFunc func(ctx context.Context, e PopulateProviderVersionsEvent) (string, error)
 
+func setupLogging(e PopulateProviderVersionsEvent) {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger = logger.
+		With("namespace", e.Namespace).
+		With("type", e.Type)
+	slog.SetDefault(logger)
+}
+
 func HandleRequest(config *config.Config) LambdaFunc {
 	return func(ctx context.Context, e PopulateProviderVersionsEvent) (string, error) {
+		setupLogging(e)
+
 		var versions []providers.Version
 
-		fmt.Printf("Fetching versions for  %s/%s\n", e.Namespace, e.Type)
+		slog.Info("Populating provider versions")
 		err := xray.Capture(ctx, "populate_provider_versions.handle", func(tracedCtx context.Context) error {
 			xray.AddAnnotation(tracedCtx, "namespace", e.Namespace)
 			xray.AddAnnotation(tracedCtx, "type", e.Type)
 
 			err := e.Validate()
 			if err != nil {
+				slog.Error("invalid event", "error", err)
 				return fmt.Errorf("invalid event: %w", err)
 			}
 
@@ -48,11 +61,11 @@ func HandleRequest(config *config.Config) LambdaFunc {
 			document, err := config.ProviderVersionCache.GetItem(tracedCtx, fmt.Sprintf("%s/%s", e.Namespace, e.Type))
 			if err != nil {
 				// if there was an error getting the document, that's fine. we'll just log it and carry on
-				fmt.Printf("Error: failed to get item from cache: %s", err.Error())
+				slog.Error("Error getting document from cache", "error", err)
 			}
 			if document != nil {
 				if time.Since(document.LastUpdated) < providercache.AllowedAge {
-					fmt.Printf("Document is up to date, not updating\n")
+					slog.Info("Document is up to date, not updating")
 					return nil
 				}
 			}
@@ -67,7 +80,7 @@ func HandleRequest(config *config.Config) LambdaFunc {
 		})
 
 		if err != nil {
-			fmt.Printf("error fetching provider versions: %s\n", err.Error())
+			slog.Error("Error fetching versions", "error", err)
 			return "", err
 		}
 
@@ -82,6 +95,7 @@ func HandleRequest(config *config.Config) LambdaFunc {
 
 func storeVersions(ctx context.Context, e PopulateProviderVersionsEvent, versions []providers.Version, config *config.Config) error {
 	if len(versions) == 0 {
+		slog.Error("No versions found, skipping storage")
 		return fmt.Errorf("no versions found")
 	}
 
@@ -107,13 +121,12 @@ func fetchFromGithub(ctx context.Context, e PopulateProviderVersionsEvent, confi
 		return nil, fmt.Errorf("repo %s/%s does not exist", e.Namespace, repoName)
 	}
 
-	fmt.Printf("Repo %s/%s exists\n", e.Namespace, repoName)
+	slog.Info("Fetching versions")
 
 	v, err := providers.GetVersions(ctx, config.RawGithubv4Client, e.Namespace, repoName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versions: %w", err)
 	}
 
-	fmt.Printf("Found %d versions\n", len(v))
 	return v, nil
 }

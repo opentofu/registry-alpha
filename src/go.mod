@@ -14,6 +14,7 @@ require (
 	github.com/aws/aws-xray-sdk-go v1.8.1
 	github.com/google/go-github/v54 v54.0.0
 	github.com/shurcooL/githubv4 v0.0.0-20230704064427-599ae7bbf278
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/oauth2 v0.11.0
 )
 
@@ -47,7 +48,7 @@ require (
 	github.com/valyala/fasthttp v1.34.0 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20210114201628-6edceaf6022f // indirect

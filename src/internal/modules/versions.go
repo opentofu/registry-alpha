@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/shurcooL/githubv4"
+	"golang.org/x/exp/slog"
 
 	"github.com/opentofu/registry/internal/github"
 )
@@ -16,6 +17,8 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 	err = xray.Capture(ctx, "module.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
+
+		slog.Info("Fetching releases")
 
 		releases, fetchErr := github.FetchReleases(tracedCtx, ghClient, namespace, name)
 		if err != nil {

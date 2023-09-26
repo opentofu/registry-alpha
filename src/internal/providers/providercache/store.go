@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/opentofu/registry/internal/providers"
+	"golang.org/x/exp/slog"
 )
 
 type Handler struct {
@@ -42,6 +43,7 @@ func (p *Handler) Store(ctx context.Context, key string, versions []providers.Ve
 
 	marshalledItem, err := attributevalue.MarshalMap(item)
 	if err != nil {
+		slog.Error("got error marshalling dynamodb item", "error", err)
 		return fmt.Errorf("got error marshalling dynamodb item: %w", err)
 	}
 
@@ -50,10 +52,13 @@ func (p *Handler) Store(ctx context.Context, key string, versions []providers.Ve
 		TableName: p.TableName,
 	}
 
+	slog.Info("Storing provider versions", "key", key, "versions", len(versions))
 	_, err = p.Client.PutItem(ctx, putItemInput)
 	if err != nil {
+		slog.Error("got error calling PutItem", "error", err)
 		return fmt.Errorf("got error calling PutItem: %w", err)
 	}
 
+	slog.Info("Successfully stored provider versions", "key", key, "versions", len(versions))
 	return nil
 }
