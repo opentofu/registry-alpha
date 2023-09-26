@@ -277,6 +277,11 @@ resource "aws_api_gateway_deployment" "deployment" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "apigw_log_group" {
+  name              = "/aws/lambda/${replace(var.domain_name, ".", "-")}-apigw"
+  retention_in_days = 7
+}
+
 resource "aws_api_gateway_stage" "stage" {
   deployment_id = aws_api_gateway_deployment.deployment.id
   rest_api_id   = aws_api_gateway_rest_api.api.id
@@ -284,9 +289,16 @@ resource "aws_api_gateway_stage" "stage" {
 
   xray_tracing_enabled = true
 
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.apigw_log_group.arn
+    format          = "{ \"requestId\":\"$context.requestId\", \"ip\": \"$context.identity.sourceIp\", \"caller\":\"$context.identity.caller\", \"user\":\"$context.identity.user\",\"requestTime\":\"$context.requestTime\", \"httpMethod\":\"$context.httpMethod\",\"resourcePath\":\"$context.resourcePath\", \"status\":\"$context.status\",\"protocol\":\"$context.protocol\", \"responseLength\":\"$context.responseLength\" }"
+  }
+
   cache_cluster_enabled = true
   cache_cluster_size    = "0.5"
 }
+
 
 resource "aws_api_gateway_method_settings" "download_method_settings" {
   rest_api_id = aws_api_gateway_rest_api.api.id
@@ -297,6 +309,7 @@ resource "aws_api_gateway_method_settings" "download_method_settings" {
 
   settings {
     metrics_enabled                         = true
+    logging_level                           = "INFO"
     caching_enabled                         = true
     // 60 minutes to keep it consistent with the provider versions cache TTL
     cache_ttl_in_seconds                    = (60*60)
@@ -313,6 +326,7 @@ resource "aws_api_gateway_method_settings" "provider_list_versions_method_settin
 
   settings {
     metrics_enabled                         = true
+    logging_level                           = "INFO"
     caching_enabled                         = true
     // 60 minutes, to ensure we're over the (current) one hour limit of backend cache TTL
     cache_ttl_in_seconds                    = (60*60)
@@ -329,6 +343,7 @@ resource "aws_api_gateway_method_settings" "module_download_method_settings" {
 
   settings {
     metrics_enabled                         = true
+    logging_level                           = "INFO"
     caching_enabled                         = true
 
     // 60 minutes to keep it consistent with the provider versions cache TTL
@@ -346,6 +361,7 @@ resource "aws_api_gateway_method_settings" "module_list_versions_method_settings
 
   settings {
     metrics_enabled                         = true
+    logging_level                           = "INFO"
     caching_enabled                         = true
     // 60 minutes to keep it consistent with the provider versions cache TTL
     cache_ttl_in_seconds                    = (60*60)
@@ -362,6 +378,7 @@ resource "aws_api_gateway_method_settings" "well_known_method_settings" {
 
   settings {
     metrics_enabled                         = true
+    logging_level                           = "INFO"
     caching_enabled                         = true
     // 60 minutes to keep it consistent with the provider versions cache TTL
     cache_ttl_in_seconds                    = (60*60)
