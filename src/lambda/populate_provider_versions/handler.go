@@ -57,28 +57,12 @@ func HandleRequest(config *config.Config) LambdaFunc {
 				}
 			}
 
-			// Construct the repo name.
-			repoName := providers.GetRepoName(e.Type)
-
-			// check the repo exists
-			exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, e.Namespace, repoName)
+			fetchedVersions, err := fetchFromGithub(tracedCtx, e, config)
 			if err != nil {
-				return fmt.Errorf("failed to check if repo exists: %w", err)
-			}
-			if !exists {
-				return fmt.Errorf("repo %s/%s does not exist", e.Namespace, repoName)
+				return err
 			}
 
-			fmt.Printf("Repo %s/%s exists\n", e.Namespace, repoName)
-
-			v, err := providers.GetVersions(tracedCtx, config.RawGithubv4Client, e.Namespace, repoName)
-			if err != nil {
-				return fmt.Errorf("failed to get versions: %w", err)
-			}
-
-			fmt.Printf("Found %d versions\n", len(v))
-
-			versions = v
+			versions = fetchedVersions
 			return nil
 		})
 
@@ -87,17 +71,49 @@ func HandleRequest(config *config.Config) LambdaFunc {
 			return "", err
 		}
 
-		if len(versions) == 0 {
-			return "", fmt.Errorf("no versions found")
-		}
-
-		key := fmt.Sprintf("%s/%s", e.Namespace, e.Type)
-
-		err = config.ProviderVersionCache.Store(ctx, key, versions)
+		err = storeVersions(ctx, e, versions, config)
 		if err != nil {
-			return "", fmt.Errorf("failed to store provider listing: %w", err)
+			return "", err
 		}
 
 		return "", nil
 	}
+}
+
+func storeVersions(ctx context.Context, e PopulateProviderVersionsEvent, versions []providers.Version, config *config.Config) error {
+	if len(versions) == 0 {
+		return fmt.Errorf("no versions found")
+	}
+
+	key := fmt.Sprintf("%s/%s", e.Namespace, e.Type)
+
+	err := config.ProviderVersionCache.Store(ctx, key, versions)
+	if err != nil {
+		return fmt.Errorf("failed to store provider listing: %w", err)
+	}
+	return nil
+}
+
+func fetchFromGithub(ctx context.Context, e PopulateProviderVersionsEvent, config *config.Config) ([]providers.Version, error) {
+	// Construct the repo name.
+	repoName := providers.GetRepoName(e.Type)
+
+	// check the repo exists
+	exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, e.Namespace, repoName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if repo exists: %w", err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("repo %s/%s does not exist", e.Namespace, repoName)
+	}
+
+	fmt.Printf("Repo %s/%s exists\n", e.Namespace, repoName)
+
+	v, err := providers.GetVersions(ctx, config.RawGithubv4Client, e.Namespace, repoName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get versions: %w", err)
+	}
+
+	fmt.Printf("Found %d versions\n", len(v))
+	return v, nil
 }
