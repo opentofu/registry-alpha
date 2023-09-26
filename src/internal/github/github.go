@@ -43,6 +43,7 @@ type GHRelease struct {
 		//nolint: revive, stylecheck // This is a struct provided by the GitHub GraphQL API.
 		TarballUrl string // The URL to download the release tarball.
 	}
+	CreatedAt time.Time // The time the release was created.
 }
 
 // ReleaseAsset represents a single asset within a GitHub release.
@@ -125,14 +126,14 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 	return release, err
 }
 
-func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, name string) (releases []GHRelease, err error) {
+func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, name string, since *time.Time) (releases []GHRelease, err error) {
 	err = xray.Capture(ctx, "github.releases.fetch", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
 
 		variables := initVariables(namespace, name)
 
-		slog.Info("Fetching releases")
+		slog.Info("Fetching new releases", "since", since)
 
 		for {
 			nodes, endCursor, fetchErr := fetchReleaseNodes(tracedCtx, ghClient, variables)
@@ -141,16 +142,27 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 				return fmt.Errorf("failed to fetch release nodes: %w", fetchErr)
 			}
 
+			slog.Info("Checking for possible new releases", "count", len(nodes))
+
 			for _, r := range nodes {
 				if r.IsDraft || r.IsPrerelease {
 					continue
 				}
 
+				// if we have been provided a "since" time, we should only fetch releases created after that time
+				// if the release was created before the given time, we can stop fetching
+				// this is because all releases are ordered by creation date
+				if since != nil && r.CreatedAt.Before(*since) {
+					slog.Info("New release was created before given time, stopping reading releases", "release", r.TagName, "created_at", r.CreatedAt, "since", since)
+					break
+				}
+
+				slog.Info("New release fetched", "release", r.TagName, "created_at", r.CreatedAt)
 				releases = append(releases, r)
 			}
 
 			if endCursor == nil {
-				slog.Info("All releases fetched")
+				slog.Info("No more releases to fetch")
 				break
 			}
 
@@ -160,7 +172,7 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 		return nil
 	})
 
-	slog.Info("Releases fetched", "count", len(releases))
+	slog.Info("New releases fetched", "count", len(releases))
 	return releases, err
 }
 
