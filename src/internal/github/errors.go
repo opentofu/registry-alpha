@@ -7,6 +7,6 @@ type ProviderError struct {
 	Code    int
 }
 
-func (p ProviderError) Error() string {
+func (p *ProviderError) Error() string {
 	return fmt.Sprintf("%d, %s", p.Code, p.Message)
 }
