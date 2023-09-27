@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/opentofu/registry/internal/config"
@@ -65,6 +66,10 @@ func downloadProviderVersion(config config.Config) LambdaFunc {
 		if err != nil {
 			// log the error too for dev
 			slog.Error("Error getting version", "error", err)
+			var ghErr *github.ProviderError
+			if errors.As(err, &ghErr) {
+				return events.APIGatewayProxyResponse{StatusCode: ghErr.Code}, err
+			}
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 

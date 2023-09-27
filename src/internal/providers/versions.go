@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -144,7 +145,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		}
 
 		if release == nil {
-			return fmt.Errorf("release not found")
+			return github.ProviderError{Message: "release not found", Code: http.StatusNotFound}
 		}
 
 		// Initialize the VersionDetails struct.
@@ -168,7 +169,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		// Identify the appropriate asset for download based on OS and architecture.
 		assetToDownload := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", os, arch))
 		if assetToDownload == nil {
-			return fmt.Errorf("could not find asset to download")
+			return github.ProviderError{Message: "could not find asset to download", Code: http.StatusNotFound}
 		}
 		versionDetails.Filename = assetToDownload.Name
 		versionDetails.DownloadURL = assetToDownload.DownloadURL
@@ -179,7 +180,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 
 		if shaSumsAsset == nil || shasumsSigAsset == nil {
 			slog.Error("Could not find shasums or its signature asset")
-			return fmt.Errorf("could not find shasums or its signature asset")
+			return github.ProviderError{Message: "could not find shasums or its signature asset", Code: http.StatusNotFound}
 		}
 
 		versionDetails.SHASumsURL = shaSumsAsset.DownloadURL
