@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"strings"
@@ -8,16 +9,17 @@ import (
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentofu/registry/internal/github"
+	"github.com/opentofu/registry/internal/platform"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/exp/slog"
 )
 
 type versionResult struct {
-	Version Version
+	Version VersionCacheItem
 	Err     error
 }
 
-// GetVersions fetches and returns a list of available versions of a given  provider hosted on GitHub.
+// GetVersions fetches and returns a list of available versions of a given provider hosted on GitHub.
 // The returned versions also include information about supported platforms and the Terraform protocol versions they are compatible with.
 //
 // Parameters:
@@ -27,7 +29,7 @@ type versionResult struct {
 // - name: The name of the provider repository.
 //
 // Returns a slice of Version structures detailing each available version. If an error occurs during fetching or processing, it returns an error.
-func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []Version, err error) {
+func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []VersionCacheItem, err error) {
 	err = xray.Capture(ctx, "provider.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
@@ -81,6 +83,10 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versionCh chan versionResult) {
 	result := versionResult{}
 
+	logger := slog.Default().With("version", r.TagName)
+
+	logger.Info("Processing release")
+
 	assets := r.ReleaseAssets.Nodes
 	platforms := getSupportedArchAndOS(assets)
 
@@ -90,14 +96,13 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 		return
 	}
 
-	result.Version = Version{
-		Version:   strings.TrimPrefix(r.TagName, "v"),
-		Platforms: platforms,
-	}
+	protocols := []string{"5.0"}
 
+	logger.Info("Fetching manifest")
 	// Read the manifest so that we can get the protocol versions.
 	manifest, manifestErr := findAndParseManifest(ctx, assets)
 	if manifestErr != nil {
+		logger.Error("Failed to find and parse manifest", "error", manifestErr)
 		result.Err = fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
 		versionCh <- result
 		return
@@ -105,12 +110,104 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 
 	// attach the protocol versions to the version result
 	if manifest != nil {
-		result.Version.Protocols = manifest.Metadata.ProtocolVersions
-	} else {
-		result.Version.Protocols = []string{"5.0"}
+		slog.Error("Found manifest", "protocols", manifest.Metadata.ProtocolVersions)
+		protocols = manifest.Metadata.ProtocolVersions
 	}
 
+	result.Version = VersionCacheItem{
+		Version:   strings.TrimPrefix(r.TagName, "v"),
+		Protocols: protocols,
+	}
+
+	slog.Info("Fetching shasums")
+	// download the shasums file so that we can get the checksum for each platform
+	shaSums, err := downloadShaSums(ctx, assets)
+	if err != nil {
+		slog.Error("Failed to download shasums", "error", err)
+		result.Err = fmt.Errorf("failed to download shasums: %w", err)
+		versionCh <- result
+		return
+	}
+
+	slog.Info("Found shasums", "shasums", len(shaSums))
+
+	shaSumsURL := github.FindAssetBySuffix(assets, "_SHA256SUMS")
+	shaSumsSignatureURL := github.FindAssetBySuffix(assets, "_SHA256SUMS.sig")
+
+	// for each of the supported platforms, we need to find the appropriate assets
+	// and add them to the version result
+	for _, platform := range platforms {
+		slog.Info("Fetching download details", "platform", fmt.Sprintf("%s_%s", platform.OS, platform.Arch))
+		details := getVersionDownloadDetails(platform, assets, shaSums)
+		if details != nil {
+			details.SHASumsURL = shaSumsURL.DownloadURL
+			details.SHASumsSignatureURL = shaSumsSignatureURL.DownloadURL
+			result.Version.DownloadDetails = append(result.Version.DownloadDetails, *details)
+		}
+	}
 	versionCh <- result
+}
+
+func getVersionDownloadDetails(platform platform.Platform, assets []github.ReleaseAsset, shaSums map[string]string) (versionDetails *VersionDownloadDetails) {
+	// find the asset for the given platform
+	asset := github.FindAssetBySuffix(assets, fmt.Sprintf("_%s_%s.zip", platform.OS, platform.Arch))
+	if asset == nil {
+		slog.Warn("Could not find asset for platform", "platform", platform)
+		return
+	}
+
+	// get the shasum for the asset
+	shasum, ok := shaSums[asset.Name]
+	if !ok {
+		slog.Warn("Could not find shasum for asset", "asset", asset.Name)
+		return nil
+	}
+
+	versionDetails = &VersionDownloadDetails{
+		Platform:            platform,
+		Filename:            asset.Name,
+		DownloadURL:         asset.DownloadURL,
+		SHASumsURL:          "",
+		SHASumsSignatureURL: "",
+		SHASum:              shasum,
+	}
+
+	return
+}
+
+func downloadShaSums(ctx context.Context, assets []github.ReleaseAsset) (map[string]string, error) {
+	asset := github.FindAssetBySuffix(assets, "_SHA256SUMS")
+	if asset == nil {
+		return nil, fmt.Errorf("could not find shasums asset")
+	}
+
+	// download the asset
+	sumsContent, assetErr := github.DownloadAssetContents(ctx, asset.DownloadURL)
+	if assetErr != nil {
+		return nil, fmt.Errorf("failed to download asset: %w", assetErr)
+	}
+	defer sumsContent.Close()
+
+	sums := make(map[string]string)
+
+	// read the contents of the shasums file
+	scanner := bufio.NewScanner(sumsContent)
+	for scanner.Scan() {
+		// read the line
+		parts := strings.Fields(scanner.Text())
+		if len(parts) != 2 {
+			continue
+		}
+
+		// the first part is the shasum, the second part is the filename
+		// we want to return a map of filename -> shasum
+		// so we can easily look up the shasum for a given filename
+		// when we are processing the release assets
+		if len(parts[1]) > 0 {
+			sums[parts[1]] = parts[0]
+		}
+	}
+	return sums, nil
 }
 
 // GetVersion fetches and returns detailed information about a specific version of a provider hosted on GitHub.
@@ -137,6 +234,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 
 		slog.Info("Fetching version")
 
+		// TODO: Replace this with a GetRelease, iterating all the releases is not efficient at all!
 		// Fetch the specific release for the given version.
 		release, releaseErr := github.FindRelease(tracedCtx, ghClient, namespace, name, version)
 		if releaseErr != nil {

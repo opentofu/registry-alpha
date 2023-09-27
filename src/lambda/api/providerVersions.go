@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -53,7 +52,7 @@ func listProviderVersions(config config.Config) LambdaFunc {
 		// For now, we will ignore errors from the cache and just fetch from GH instead
 		document, _ := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
 		if document != nil {
-			return processDocument(ctx, document, config, effectiveNamespace, params.Type)
+			return processDocumentForProviderListing(ctx, document, config, effectiveNamespace, params.Type)
 		}
 
 		// now that we know we dont have the document, we should check that the repo exists
@@ -77,12 +76,12 @@ func listProviderVersions(config config.Config) LambdaFunc {
 	}
 }
 
-func processDocument(ctx context.Context, document *providercache.VersionListingItem, config config.Config, namespace, providerType string) (events.APIGatewayProxyResponse, error) {
+func processDocumentForProviderListing(ctx context.Context, document *providercache.VersionListingItem, config config.Config, namespace, providerType string) (events.APIGatewayProxyResponse, error) {
 	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
 
-	if time.Since(document.LastUpdated) < providercache.AllowedAge {
+	if !document.IsStale() {
 		slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
-		return versionsResponse(document.Versions)
+		return versionsResponse(document.ToVersionListing())
 	}
 
 	slog.Info("Document is too old, triggering lambda to update dynamodb", "last_updated", document.LastUpdated)
@@ -90,7 +89,7 @@ func processDocument(ctx context.Context, document *providercache.VersionListing
 		slog.Error("Error triggering lambda", "error", err)
 	}
 
-	return versionsResponse(document.Versions)
+	return versionsResponse(document.ToVersionListing())
 }
 
 func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoName string) (events.APIGatewayProxyResponse, error) {
@@ -102,7 +101,12 @@ func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoN
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	return versionsResponse(versions)
+	// TODO: Clean up this code
+	versionsToReturn := make([]providers.Version, len(versions))
+	for _, version := range versions {
+		versionsToReturn = append(versionsToReturn, version.ToVersion())
+	}
+	return versionsResponse(versionsToReturn)
 }
 
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
