@@ -290,8 +290,12 @@ resource "aws_api_gateway_integration" "github_rest_integration" {
   http_method = aws_api_gateway_method.github_rest_method.http_method
 
   integration_http_method = "GET"
-  type                    = "AWS_PROXY"
+  type                    = "HTTP_PROXY"
   uri                     = "https://api.github.com/{proxy}"
+
+  request_parameters = {
+    "integration.request.path.proxy" = "method.request.path.proxy"
+  }
 
   cache_key_parameters = [
     "method.request.path.proxy"
@@ -315,7 +319,7 @@ resource "aws_api_gateway_integration" "github_graphql_integration" {
   http_method = aws_api_gateway_method.github_graphql_method.http_method
 
   integration_http_method = "POST"
-  type                    = "AWS_PROXY"
+  type                    = "HTTP_PROXY"
   uri                     = "https://api.github.com/graphql"
 
   request_parameters = {
@@ -481,7 +485,7 @@ resource "aws_api_gateway_method_settings" "github_rest_method_settings" {
   stage_name  = aws_api_gateway_stage.stage.stage_name
 
   # This encodes `/` as `~1` to provide the correct path for the method
-  method_path = "~1rest~1{proxy+}"
+  method_path = "~1github~1rest~1/GET"
 
   settings {
     metrics_enabled                         = true
@@ -499,7 +503,7 @@ resource "aws_api_gateway_method_settings" "github_graphql_method_settings" {
   stage_name  = aws_api_gateway_stage.stage.stage_name
 
   # This encodes `/` as `~1` to provide the correct path for the method
-  method_path = "~1graphql~1{proxy+}"
+  method_path = "~1github~1graphql~1{proxy}/POST"
 
   settings {
     metrics_enabled                         = true

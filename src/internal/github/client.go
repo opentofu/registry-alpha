@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"net/http"
+	"net/url"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/google/go-github/v54/github"
@@ -17,14 +18,12 @@ func getGithubOauth2Client(token string) *http.Client {
 }
 
 func NewManagedGithubClient(token string) *github.Client {
-	client, err := github.NewEnterpriseClient("https://registry.opentofu.org/rest/", "https://uploads.github.com/", getGithubOauth2Client(token))
-	if err != nil {
-		panic("we got error")
-	}
+	client := github.NewClient(getGithubOauth2Client(token))
+	client.BaseURL, _ = url.Parse("https://registry.opentofu.org/github/rest/")
 	return client
 	//return github.NewClient(getGithubOauth2Client(token))
 }
 
 func NewRawGithubv4Client(token string) *githubv4.Client {
-	return githubv4.NewEnterpriseClient("https://registry.opentofu.org/graphql/", getGithubOauth2Client(token))
+	return githubv4.NewEnterpriseClient("https://registry.opentofu.org/github/graphql/", getGithubOauth2Client(token))
 }
