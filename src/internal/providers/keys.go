@@ -10,13 +10,14 @@ import (
 	"strings"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/opentofu/registry/internal/providers/types"
 )
 
 //go:embed keys/*
 var keys embed.FS
 
 // KeysForNamespace returns the GPG public keys for the given namespace.
-func KeysForNamespace(namespace string) ([]GPGPublicKey, error) {
+func KeysForNamespace(namespace string) ([]types.GPGPublicKey, error) {
 	dirName := filepath.Join("keys", namespace)
 
 	entries, err := keys.ReadDir(dirName)
@@ -24,7 +25,7 @@ func KeysForNamespace(namespace string) ([]GPGPublicKey, error) {
 	if err != nil {
 		// This is fine, it just means that the namespace doesn't have any keys yet.
 		if os.IsNotExist(err) {
-			return []GPGPublicKey{}, nil
+			return []types.GPGPublicKey{}, nil
 		}
 
 		// This is not fine, it means that we failed to read the directory for some
@@ -32,7 +33,7 @@ func KeysForNamespace(namespace string) ([]GPGPublicKey, error) {
 		return nil, fmt.Errorf("failed to read key directory: %w", err)
 	}
 
-	publicKeys := make([]GPGPublicKey, 0, len(entries))
+	publicKeys := make([]types.GPGPublicKey, 0, len(entries))
 	var buildErrors []error
 
 	for _, entry := range entries {
@@ -65,7 +66,7 @@ func NamespacesWithKeys() ([]string, error) {
 	return namespaces, nil
 }
 
-func buildKey(path string) (*GPGPublicKey, error) {
+func buildKey(path string) (*types.GPGPublicKey, error) {
 	file, err := keys.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open key file: %w", err)
@@ -84,7 +85,7 @@ func buildKey(path string) (*GPGPublicKey, error) {
 		return nil, fmt.Errorf("could not build public key from ascii armor: %w", err)
 	}
 
-	return &GPGPublicKey{
+	return &types.GPGPublicKey{
 		ASCIIArmor: asciiArmor,
 		KeyID:      strings.ToUpper(key.GetHexKeyID()),
 	}, nil

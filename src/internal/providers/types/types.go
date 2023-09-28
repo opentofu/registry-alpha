@@ -1,6 +1,8 @@
-package providers
+package types
 
 import (
+	"time"
+
 	"github.com/opentofu/registry/internal/platform"
 )
 
@@ -39,27 +41,51 @@ type GPGPublicKey struct {
 	ASCIIArmor string `json:"ascii_armor"` // The ASCII armored representation of the GPG public key.
 }
 
-// VersionCacheItem provides comprehensive details about a specific provider version.
+// CacheItem represents a single item in the cache. This single item corresponds to a single provider and will store all of the versions for that provider.
+// and the data required to serve the provider download and version listing endpoints.
+type CacheItem struct {
+	Provider    string      `dynamodbav:"provider"`
+	Versions    VersionList `dynamodbav:"versions"`
+	LastUpdated time.Time   `dynamodbav:"last_updated"`
+}
+
+const allowedAge = (1 * time.Hour) - (5 * time.Minute) //nolint:gomnd // 55 minutes
+
+// IsStale returns true if the cache item is stale.
+func (i *CacheItem) IsStale() bool {
+	return time.Since(i.LastUpdated) > allowedAge
+}
+
+type VersionList []CacheVersion
+
+func (l VersionList) ToVersions() []Version {
+	var versionsToReturn []Version
+	for _, version := range l {
+		versionsToReturn = append(versionsToReturn, version.ToVersion())
+	}
+	return versionsToReturn
+}
+
+func (i *CacheItem) GetVersionDetails(version string, os string, arch string) *VersionDetails {
+	for _, v := range i.Versions {
+		if v.Version == version {
+			return v.GetVersionDetails(os, arch)
+		}
+	}
+	return nil
+}
+
+// CacheVersion provides comprehensive details about a specific provider version.
 // This includes the OS, architecture, download URLs, SHA sums, and the signing keys used for the version.
 // This is made to store data in our cache for both provider version listing and provider download endpoints
-type VersionCacheItem struct {
-	Version         string                   `json:"version"` // The version number of the provider.
-	DownloadDetails []VersionDownloadDetails `json:"download_details"`
-	Protocols       []string                 `json:"protocols"` // The protocol versions the provider supports.
+type CacheVersion struct {
+	Version         string                        `json:"version"` // The version number of the provider.
+	DownloadDetails []CacheVersionDownloadDetails `json:"download_details"`
+	Protocols       []string                      `json:"protocols"` // The protocol versions the provider supports.
 }
 
-// VersionDownloadDetails provides comprehensive details about a specific provider version.
-type VersionDownloadDetails struct {
-	Platform            platform.Platform `json:"platform"`              // The platform
-	Filename            string            `json:"filename"`              // The filename of the provider binary.
-	DownloadURL         string            `json:"download_url"`          // The direct URL to download the provider binary.
-	SHASumsURL          string            `json:"shasums_url"`           // The URL to the SHA checksums file.
-	SHASumsSignatureURL string            `json:"shasums_signature_url"` // The URL to the GPG signature of the SHA checksums file.
-	SHASum              string            `json:"shasum"`                // The SHA checksum of the provider binary.
-}
-
-// ToVersion converts a VersionCacheItem to a Version to be used in the provider version listing endpoint.
-func (v *VersionCacheItem) ToVersion() Version {
+// ToVersion converts a CacheVersion to a Version to be used in the provider version listing endpoint.
+func (v *CacheVersion) ToVersion() Version {
 	platforms := make([]platform.Platform, len(v.DownloadDetails))
 	for i, d := range v.DownloadDetails {
 		platforms[i] = d.Platform
@@ -72,9 +98,9 @@ func (v *VersionCacheItem) ToVersion() Version {
 	}
 }
 
-// GetVersionDetails gets a VersionCacheItem to a VersionDetails for a specific OS and architecture.
-// Note: This will be missing the SigningKeys field.
-func (v *VersionCacheItem) GetVersionDetails(os, arch string) *VersionDetails {
+// GetVersionDetails gets the VersionDetails for a specific OS and architecture.
+// Note: The result of this function will be missing the SigningKeys field.
+func (v *CacheVersion) GetVersionDetails(os, arch string) *VersionDetails {
 	for _, d := range v.DownloadDetails {
 		if d.Platform.OS == os && d.Platform.Arch == arch {
 			return &VersionDetails{
@@ -92,4 +118,14 @@ func (v *VersionCacheItem) GetVersionDetails(os, arch string) *VersionDetails {
 	}
 
 	return nil
+}
+
+// CacheVersionDownloadDetails provides comprehensive details about a specific provider version.
+type CacheVersionDownloadDetails struct {
+	Platform            platform.Platform `json:"platform"`              // The platform
+	Filename            string            `json:"filename"`              // The filename of the provider binary.
+	DownloadURL         string            `json:"download_url"`          // The direct URL to download the provider binary.
+	SHASumsURL          string            `json:"shasums_url"`           // The URL to the SHA checksums file.
+	SHASumsSignatureURL string            `json:"shasums_signature_url"` // The URL to the GPG signature of the SHA checksums file.
+	SHASum              string            `json:"shasum"`                // The SHA checksum of the provider binary.
 }

@@ -10,12 +10,13 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentofu/registry/internal/github"
 	"github.com/opentofu/registry/internal/platform"
+	"github.com/opentofu/registry/internal/providers/types"
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/exp/slog"
 )
 
 type versionResult struct {
-	Version VersionCacheItem
+	Version types.CacheVersion
 	Err     error
 }
 
@@ -29,7 +30,7 @@ type versionResult struct {
 // - name: The name of the provider repository.
 //
 // Returns a slice of Version structures detailing each available version. If an error occurs during fetching or processing, it returns an error.
-func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []VersionCacheItem, err error) {
+func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions types.VersionList, err error) {
 	err = xray.Capture(ctx, "provider.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
@@ -114,7 +115,7 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 		protocols = manifest.Metadata.ProtocolVersions
 	}
 
-	result.Version = VersionCacheItem{
+	result.Version = types.CacheVersion{
 		Version:   strings.TrimPrefix(r.TagName, "v"),
 		Protocols: protocols,
 	}
@@ -148,7 +149,7 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 	versionCh <- result
 }
 
-func getVersionDownloadDetails(platform platform.Platform, assets []github.ReleaseAsset, shaSums map[string]string) (versionDetails *VersionDownloadDetails) {
+func getVersionDownloadDetails(platform platform.Platform, assets []github.ReleaseAsset, shaSums map[string]string) (versionDetails *types.CacheVersionDownloadDetails) {
 	// find the asset for the given platform
 	asset := github.FindAssetBySuffix(assets, fmt.Sprintf("_%s_%s.zip", platform.OS, platform.Arch))
 	if asset == nil {
@@ -163,7 +164,7 @@ func getVersionDownloadDetails(platform platform.Platform, assets []github.Relea
 		return nil
 	}
 
-	versionDetails = &VersionDownloadDetails{
+	versionDetails = &types.CacheVersionDownloadDetails{
 		Platform:            platform,
 		Filename:            asset.Name,
 		DownloadURL:         asset.DownloadURL,
@@ -195,7 +196,7 @@ func downloadShaSums(ctx context.Context, assets []github.ReleaseAsset) (map[str
 	for scanner.Scan() {
 		// read the line
 		parts := strings.Fields(scanner.Text())
-		if len(parts) != 2 {
+		if len(parts) != 2 { //nolint:gomnd // we expect 2 parts
 			continue
 		}
 
@@ -224,7 +225,7 @@ func downloadShaSums(ctx context.Context, assets []github.ReleaseAsset) (map[str
 //
 // Returns a VersionDetails structure with detailed information about the specified version. If an error occurs during fetching or processing, it returns an error.
 
-func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, version string, os string, arch string) (versionDetails *VersionDetails, err error) {
+func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, version string, os string, arch string) (versionDetails *types.VersionDetails, err error) {
 	err = xray.Capture(ctx, "provider.versiondetails", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
@@ -246,7 +247,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		}
 
 		// Initialize the VersionDetails struct.
-		versionDetails = &VersionDetails{
+		versionDetails = &types.VersionDetails{
 			OS:   os,
 			Arch: arch,
 		}
@@ -297,7 +298,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 			return fmt.Errorf("failed to get public keys: %w", keysErr)
 		}
 
-		versionDetails.SigningKeys = SigningKeys{
+		versionDetails.SigningKeys = types.SigningKeys{
 			GPGPublicKeys: publicKeys,
 		}
 

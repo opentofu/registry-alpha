@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/opentofu/registry/internal/config"
-	"github.com/opentofu/registry/internal/providers/providercache"
+	"github.com/opentofu/registry/internal/providers/types"
 	"golang.org/x/exp/slog"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -70,29 +70,37 @@ func downloadProviderVersion(config config.Config) LambdaFunc {
 			slog.Info("Repo does not exist")
 			return NotFoundResponse, nil
 		}
-		
-		versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, repoName, params.Version, params.OS, params.Architecture)
-		if err != nil {
-			// log the error too for dev
-			slog.Error("Error getting version", "error", err)
-			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+
+		// if the document didn't exist in the cache, trigger the lambda to populate it and return the current results from GH
+		if err := triggerPopulateProviderVersions(ctx, config, effectiveNamespace, params.Type); err != nil {
+			slog.Error("Error triggering lambda", "error", err)
 		}
 
-		resBody, err := json.Marshal(versionDownloadResponse)
-		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
-		}
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
+		return fetchVersionFromGithub(ctx, err, config, effectiveNamespace, repoName, params)
 	}
 }
 
-func processDocumentForProviderDownload(document *providercache.VersionListingItem, effectiveNamespace string, params DownloadHandlerPathParams) (events.APIGatewayProxyResponse, error) {
+func fetchVersionFromGithub(ctx context.Context, err error, config config.Config, effectiveNamespace string, repoName string, params DownloadHandlerPathParams) (events.APIGatewayProxyResponse, error) {
+	versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, repoName, params.Version, params.OS, params.Architecture)
+	if err != nil {
+		slog.Error("Error getting version", "error", err)
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+	}
+
+	resBody, err := json.Marshal(versionDownloadResponse)
+	if err != nil {
+		slog.Error("Error marshalling response", "error", err)
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+	}
+	return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
+}
+
+func processDocumentForProviderDownload(document *types.CacheItem, effectiveNamespace string, params DownloadHandlerPathParams) (events.APIGatewayProxyResponse, error) {
 	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
 
 	// try and find the version in the document
 	versionDetails := document.GetVersionDetails(params.Version, params.OS, params.Architecture)
 	if versionDetails != nil {
-
 		// attach the signing keys
 		publicKeys, keysErr := providers.KeysForNamespace(effectiveNamespace)
 		if keysErr != nil {
@@ -100,7 +108,7 @@ func processDocumentForProviderDownload(document *providercache.VersionListingIt
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, keysErr
 		}
 
-		keys := providers.SigningKeys{}
+		keys := types.SigningKeys{}
 		keys.GPGPublicKeys = publicKeys
 
 		versionDetails.SigningKeys = keys

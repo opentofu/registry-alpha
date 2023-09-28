@@ -9,6 +9,7 @@ import (
 	"github.com/opentofu/registry/internal/config"
 	"github.com/opentofu/registry/internal/github"
 	"github.com/opentofu/registry/internal/providers"
+	"github.com/opentofu/registry/internal/providers/types"
 	"golang.org/x/exp/slog"
 )
 
@@ -41,7 +42,7 @@ func HandleRequest(config *config.Config) LambdaFunc {
 	return func(ctx context.Context, e PopulateProviderVersionsEvent) (string, error) {
 		setupLogging(e)
 
-		var versions []providers.VersionCacheItem
+		var versions types.VersionList
 
 		slog.Info("Populating provider versions")
 		err := xray.Capture(ctx, "populate_provider_versions.handle", func(tracedCtx context.Context) error {
@@ -91,7 +92,7 @@ func HandleRequest(config *config.Config) LambdaFunc {
 	}
 }
 
-func storeVersions(ctx context.Context, e PopulateProviderVersionsEvent, versions []providers.VersionCacheItem, config *config.Config) error {
+func storeVersions(ctx context.Context, e PopulateProviderVersionsEvent, versions types.VersionList, config *config.Config) error {
 	if len(versions) == 0 {
 		slog.Error("No versions found, skipping storage")
 		return fmt.Errorf("no versions found")
@@ -106,7 +107,7 @@ func storeVersions(ctx context.Context, e PopulateProviderVersionsEvent, version
 	return nil
 }
 
-func fetchFromGithub(ctx context.Context, e PopulateProviderVersionsEvent, config *config.Config) ([]providers.VersionCacheItem, error) {
+func fetchFromGithub(ctx context.Context, e PopulateProviderVersionsEvent, config *config.Config) (types.VersionList, error) {
 	// Construct the repo name.
 	repoName := providers.GetRepoName(e.Type)
 
