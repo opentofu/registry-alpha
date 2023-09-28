@@ -31,6 +31,18 @@ func (p ListProvidersPathParams) AnnotateLogger() {
 	slog.SetDefault(logger)
 }
 
+func (p ListProvidersPathParams) ListWarnings() []string {
+	switch p.Namespace {
+	case "hashicorp":
+		switch p.Type {
+		case "terraform":
+			return []string{`This provider is archived and no longer needed. The terraform_remote_state data source is built into the latest OpenTofu release.`}
+		}
+	}
+
+	return nil
+}
+
 func getListProvidersPathParams(req events.APIGatewayProxyRequest) ListProvidersPathParams {
 	return ListProvidersPathParams{
 		Namespace: req.PathParameters["namespace"],
@@ -40,6 +52,16 @@ func getListProvidersPathParams(req events.APIGatewayProxyRequest) ListProviders
 
 type ListProviderVersionsResponse struct {
 	Versions []providers.Version `json:"versions"`
+	Warnings []string            `json:"warnings,omitempty"`
+}
+
+var warningsContext = struct{}{}
+
+func warningsFromContext(ctx context.Context) []string {
+	if v := ctx.Value(warningsContext); v != nil {
+		return v.([]string)
+	}
+	return nil
 }
 
 func listProviderVersions(config config.Config) LambdaFunc {
@@ -49,6 +71,12 @@ func listProviderVersions(config config.Config) LambdaFunc {
 
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := providers.GetRepoName(params.Type)
+
+		// Warnings lookup: https://github.com/opentofu/registry/issues/108
+		// TODO: add warning message for any archived providers based on the github repo status
+		// TODO: consider more scalable approach to warn users, do we need it at all?
+		// TODO: How to govern the warnings, i.e. how to align their correctness with provider maintainers?
+		ctx = context.WithValue(ctx, warningsContext, params.ListWarnings())
 
 		// For now, we will ignore errors from the cache and just fetch from GH instead
 		document, _ := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
@@ -82,7 +110,7 @@ func processDocument(ctx context.Context, document *providercache.VersionListing
 
 	if time.Since(document.LastUpdated) < providercache.AllowedAge {
 		slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
-		return versionsResponse(document.Versions)
+		return versionsResponse(document.Versions, warningsFromContext(ctx))
 	}
 
 	slog.Info("Document is too old, triggering lambda to update dynamodb", "last_updated", document.LastUpdated)
@@ -90,7 +118,7 @@ func processDocument(ctx context.Context, document *providercache.VersionListing
 		slog.Error("Error triggering lambda", "error", err)
 	}
 
-	return versionsResponse(document.Versions)
+	return versionsResponse(document.Versions, warningsFromContext(ctx))
 }
 
 func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoName string) (events.APIGatewayProxyResponse, error) {
@@ -102,7 +130,7 @@ func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoN
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	return versionsResponse(versions)
+	return versionsResponse(versions, warningsFromContext(ctx))
 }
 
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
@@ -120,9 +148,13 @@ func triggerPopulateProviderVersions(ctx context.Context, config config.Config, 
 	return nil
 }
 
-func versionsResponse(versions []providers.Version) (events.APIGatewayProxyResponse, error) {
+func versionsResponse(versions []providers.Version, warnings []string) (events.APIGatewayProxyResponse, error) {
 	response := ListProviderVersionsResponse{
 		Versions: versions,
+	}
+
+	if len(warnings) > 0 {
+		response.Warnings = warnings
 	}
 
 	resBody, err := json.Marshal(response)
