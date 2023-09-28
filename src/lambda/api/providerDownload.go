@@ -72,15 +72,15 @@ func downloadProviderVersion(config config.Config) LambdaFunc {
 		}
 
 		// if the document didn't exist in the cache, trigger the lambda to populate it and return the current results from GH
-		if err := triggerPopulateProviderVersions(ctx, config, effectiveNamespace, params.Type); err != nil {
-			slog.Error("Error triggering lambda", "error", err)
+		if triggerErr := triggerPopulateProviderVersions(ctx, config, effectiveNamespace, params.Type); triggerErr != nil {
+			slog.Error("Error triggering lambda", "error", triggerErr)
 		}
 
-		return fetchVersionFromGithub(ctx, err, config, effectiveNamespace, repoName, params)
+		return fetchVersionFromGithub(ctx, config, effectiveNamespace, repoName, params)
 	}
 }
 
-func fetchVersionFromGithub(ctx context.Context, err error, config config.Config, effectiveNamespace string, repoName string, params DownloadHandlerPathParams) (events.APIGatewayProxyResponse, error) {
+func fetchVersionFromGithub(ctx context.Context, config config.Config, effectiveNamespace string, repoName string, params DownloadHandlerPathParams) (events.APIGatewayProxyResponse, error) {
 	versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, repoName, params.Version, params.OS, params.Architecture)
 	if err != nil {
 		slog.Error("Error getting version", "error", err)
