@@ -492,8 +492,8 @@ resource "aws_api_gateway_method_settings" "github_rest_method_settings" {
     logging_level                           = "INFO"
     data_trace_enabled                      = true
     caching_enabled                         = true
-    // 60 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (60*60)
+    // 50 minutes to keep it consistent with the other caching layers' TTL
+    cache_ttl_in_seconds                    = (50*60)
     require_authorization_for_cache_control = false
   }
 }
@@ -510,8 +510,8 @@ resource "aws_api_gateway_method_settings" "github_graphql_method_settings" {
     logging_level                           = "INFO"
     data_trace_enabled                      = true
     caching_enabled                         = true
-    // 60 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (60*60)
+    // 50 minutes to keep it consistent with the other caching layers' TTL
+    cache_ttl_in_seconds                    = (50*60)
     require_authorization_for_cache_control = false
   }
 }
