@@ -21,7 +21,6 @@ func NewManagedGithubClient(token string) *github.Client {
 	client := github.NewClient(getGithubOauth2Client(token))
 	client.BaseURL, _ = url.Parse("https://registry.opentofu.org/github/rest/")
 	return client
-	//return github.NewClient(getGithubOauth2Client(token))
 }
 
 func NewRawGithubv4Client(token string) *githubv4.Client {
