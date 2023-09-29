@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentofu/registry/internal/github"
 	"github.com/opentofu/registry/internal/platform"
+	"golang.org/x/exp/slog"
 )
 
 func getShaSum(ctx context.Context, downloadURL string, filename string) (shaSum string, err error) {
@@ -47,12 +48,16 @@ func findShaSum(contents []byte, filename string, shaSum string) string {
 
 func getSupportedArchAndOS(assets []github.ReleaseAsset) []platform.Platform {
 	var platforms []platform.Platform
+	slog.Info("Finding supported platforms", "assets", len(assets))
 	for _, asset := range assets {
+		slog.Info("Extracting platform from asset", "asset", asset)
 		platform := platform.ExtractPlatformFromArtifact(asset.Name)
 		if platform == nil {
 			continue
 		}
+		slog.Info("Platform identified", "platform", platform)
 		platforms = append(platforms, *platform)
 	}
+	slog.Info("Supported platforms found", "platforms", len(platforms))
 	return platforms
 }

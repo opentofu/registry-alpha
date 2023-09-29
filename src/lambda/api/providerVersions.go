@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -14,7 +13,7 @@ import (
 	"github.com/opentofu/registry/internal/config"
 	"github.com/opentofu/registry/internal/github"
 	"github.com/opentofu/registry/internal/providers"
-	"github.com/opentofu/registry/internal/providers/providercache"
+	"github.com/opentofu/registry/internal/providers/types"
 	"golang.org/x/exp/slog"
 )
 
@@ -39,7 +38,7 @@ func getListProvidersPathParams(req events.APIGatewayProxyRequest) ListProviders
 }
 
 type ListProviderVersionsResponse struct {
-	Versions []providers.Version `json:"versions"`
+	Versions []types.Version `json:"versions"`
 }
 
 func listProviderVersions(config config.Config) LambdaFunc {
@@ -50,14 +49,14 @@ func listProviderVersions(config config.Config) LambdaFunc {
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := providers.GetRepoName(params.Type)
 
-		// For now, we will ignore errors from the cache and just fetch from GH instead
+		// For now, we will ignore errors from the cache and just fetch from GH instead if the document doesn't exist
 		document, _ := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
 		if document != nil {
-			return processDocument(ctx, document, config, effectiveNamespace, params.Type)
+			return processDocumentForProviderListing(ctx, document, config, effectiveNamespace, params.Type)
 		}
 
-		// now that we know we dont have the document, we should check that the repo exists
-		// if we checked the repo exists before then we are making extra calls to github that we don't need to make.
+		// now that we know we don't have the document, we should check that the repo exists
+		// if we checked the repo exists before then we are making extra calls to GitHub that we don't need to make.
 		if exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName); !exists {
 			if err != nil {
 				slog.Error("Error checking if repo exists", "error", err)
@@ -77,32 +76,33 @@ func listProviderVersions(config config.Config) LambdaFunc {
 	}
 }
 
-func processDocument(ctx context.Context, document *providercache.VersionListingItem, config config.Config, namespace, providerType string) (events.APIGatewayProxyResponse, error) {
+func processDocumentForProviderListing(ctx context.Context, document *types.CacheItem, config config.Config, namespace, providerType string) (events.APIGatewayProxyResponse, error) {
 	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
 
-	if time.Since(document.LastUpdated) < providercache.AllowedAge {
+	if !document.IsStale() {
 		slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
-		return versionsResponse(document.Versions)
+		return versionsResponse(document.Versions.ToVersions())
 	}
 
 	slog.Info("Document is too old, triggering lambda to update dynamodb", "last_updated", document.LastUpdated)
 	if err := triggerPopulateProviderVersions(ctx, config, namespace, providerType); err != nil {
+		// if we can't trigger the lambda, we should still return the cached versions and just log the error
 		slog.Error("Error triggering lambda", "error", err)
 	}
 
-	return versionsResponse(document.Versions)
+	return versionsResponse(document.Versions.ToVersions())
 }
 
 func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoName string) (events.APIGatewayProxyResponse, error) {
 	slog.Info("Fetching versions from github\n")
 
-	versions, err := providers.GetVersions(ctx, config.RawGithubv4Client, namespace, repoName)
+	versionList, err := providers.GetVersions(ctx, config.RawGithubv4Client, namespace, repoName)
 	if err != nil {
 		slog.Error("Error fetching versions from github", "error", err)
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	return versionsResponse(versions)
+	return versionsResponse(versionList.ToVersions())
 }
 
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
@@ -120,7 +120,7 @@ func triggerPopulateProviderVersions(ctx context.Context, config config.Config, 
 	return nil
 }
 
-func versionsResponse(versions []providers.Version) (events.APIGatewayProxyResponse, error) {
+func versionsResponse(versions []types.Version) (events.APIGatewayProxyResponse, error) {
 	response := ListProviderVersionsResponse{
 		Versions: versions,
 	}
