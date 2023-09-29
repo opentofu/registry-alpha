@@ -1,5 +1,4 @@
 // Package warnings defines the warnings associated with the provider
-
 package warnings
 
 import "context"
@@ -16,9 +15,9 @@ import "context"
 // fmt.Println(warn)
 // >> [This provider is archived and no longer needed. The terraform_remote_state data source is built into the latest OpenTofu release.]
 func ProviderWarnings(providerNamespace, providerType string) []string {
-	switch providerNamespace {
+	switch providerNamespace { //nolint:gocritic // Switch is more appropriate than 'if' for the use case
 	case "hashicorp":
-		switch providerType {
+		switch providerType { //nolint:gocritic // Switch is more appropriate than 'if' for the use case
 		case "terraform":
 			return []string{`This provider is archived and no longer needed. The terraform_remote_state data source is built into the latest OpenTofu release.`}
 		}
@@ -27,7 +26,7 @@ func ProviderWarnings(providerNamespace, providerType string) []string {
 	return nil
 }
 
-var warningsContext = struct{}{}
+var warningsContext = struct{}{} //nolint:gochecknoglobals // This is a commonly used pattern for context binding
 
 // NewContext adds warnings to the parent context.
 func NewContext(ctx context.Context, warnings []string) context.Context {
