@@ -99,27 +99,28 @@ func processDocumentForProviderDownload(document *types.CacheItem, effectiveName
 	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
 
 	// try and find the version in the document
-	versionDetails := document.GetVersionDetails(params.Version, params.OS, params.Architecture)
-	if versionDetails != nil {
-		// attach the signing keys
-		publicKeys, keysErr := providers.KeysForNamespace(effectiveNamespace)
-		if keysErr != nil {
-			slog.Error("Could not get public keys", "error", keysErr)
-			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, keysErr
-		}
-
-		keys := types.SigningKeys{}
-		keys.GPGPublicKeys = publicKeys
-
-		versionDetails.SigningKeys = keys
-
-		slog.Info("Found version in document", "version", params.Version)
-		resBody, err := json.Marshal(versionDetails)
-		if err != nil {
-			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
-		}
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
+	versionDetails, ok := document.GetVersionDetails(params.Version, params.OS, params.Architecture)
+	if !ok {
+		slog.Info("Version not found in document, returning 404", "version", params.Version)
+		return NotFoundResponse, nil
 	}
-	slog.Info("Version not found in document, returning 404", "version", params.Version)
-	return NotFoundResponse, nil
+
+	// attach the signing keys
+	publicKeys, keysErr := providers.KeysForNamespace(effectiveNamespace)
+	if keysErr != nil {
+		slog.Error("Could not get public keys", "error", keysErr)
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, keysErr
+	}
+
+	keys := types.SigningKeys{}
+	keys.GPGPublicKeys = publicKeys
+
+	versionDetails.SigningKeys = keys
+
+	slog.Info("Found version in document", "version", params.Version)
+	resBody, err := json.Marshal(versionDetails)
+	if err != nil {
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+	}
+	return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
 }

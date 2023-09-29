@@ -66,13 +66,13 @@ func (l VersionList) ToVersions() []Version {
 	return versionsToReturn
 }
 
-func (i *CacheItem) GetVersionDetails(version string, os string, arch string) *VersionDetails {
+func (i *CacheItem) GetVersionDetails(version string, os string, arch string) (*VersionDetails, bool) {
 	for _, v := range i.Versions {
 		if v.Version == version {
-			return v.GetVersionDetails(os, arch)
+			return v.GetVersionDetails(os, arch), true
 		}
 	}
-	return nil
+	return nil, false
 }
 
 // CacheVersion provides comprehensive details about a specific provider version.
