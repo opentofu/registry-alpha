@@ -113,13 +113,11 @@ func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoN
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
 	slog.Info("Invoking populate provider versions lambda asynchronously to update dynamodb document\n")
 	// invoke the async lambda to update the dynamodb document
-	_, err := config.LambdaClient.Invoke(
-		ctx, &lambda.InvokeInput{
-			FunctionName:   aws.String(os.Getenv("POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME")),
-			InvocationType: "Event", // Event == async
-			Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"type\": \"%s\"}", effectiveNamespace, effectiveType)),
-		},
-	)
+	_, err := config.LambdaClient.Invoke(ctx, &lambda.InvokeInput{
+		FunctionName:   aws.String(os.Getenv("POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME")),
+		InvocationType: "Event", // Event == async
+		Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"type\": \"%s\"}", effectiveNamespace, effectiveType)),
+	})
 	if err != nil {
 		slog.Error("Error invoking lambda", "error", err)
 		return err
