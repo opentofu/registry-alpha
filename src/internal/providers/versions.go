@@ -173,7 +173,7 @@ func getVersionDownloadDetails(platform platform.Platform, assets []github.Relea
 		SHASum:              shasum,
 	}
 
-	return
+	return nil
 }
 
 func downloadShaSums(ctx context.Context, assets []github.ReleaseAsset) (map[string]string, error) {
