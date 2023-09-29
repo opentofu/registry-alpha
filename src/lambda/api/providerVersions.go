@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/registry/internal/github"
 	"github.com/opentofu/registry/internal/providers"
 	"github.com/opentofu/registry/internal/providers/providercache"
+	"github.com/opentofu/registry/internal/warnings"
 	"golang.org/x/exp/slog"
 )
 
@@ -31,18 +32,6 @@ func (p ListProvidersPathParams) AnnotateLogger() {
 	slog.SetDefault(logger)
 }
 
-func (p ListProvidersPathParams) ListWarnings() []string {
-	switch p.Namespace {
-	case "hashicorp":
-		switch p.Type {
-		case "terraform":
-			return []string{`This provider is archived and no longer needed. The terraform_remote_state data source is built into the latest OpenTofu release.`}
-		}
-	}
-
-	return nil
-}
-
 func getListProvidersPathParams(req events.APIGatewayProxyRequest) ListProvidersPathParams {
 	return ListProvidersPathParams{
 		Namespace: req.PathParameters["namespace"],
@@ -55,15 +44,6 @@ type ListProviderVersionsResponse struct {
 	Warnings []string            `json:"warnings,omitempty"`
 }
 
-var warningsContext = struct{}{}
-
-func warningsFromContext(ctx context.Context) []string {
-	if v := ctx.Value(warningsContext); v != nil {
-		return v.([]string)
-	}
-	return nil
-}
-
 func listProviderVersions(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getListProvidersPathParams(req)
@@ -73,10 +53,7 @@ func listProviderVersions(config config.Config) LambdaFunc {
 		repoName := providers.GetRepoName(params.Type)
 
 		// Warnings lookup: https://github.com/opentofu/registry/issues/108
-		// TODO: add warning message for any archived providers based on the github repo status
-		// TODO: consider more scalable approach to warn users, do we need it at all?
-		// TODO: How to govern the warnings, i.e. how to align their correctness with provider maintainers?
-		ctx = context.WithValue(ctx, warningsContext, params.ListWarnings())
+		ctx = warnings.NewContext(ctx, warnings.ProviderWarnings(params.Namespace, params.Type))
 
 		// For now, we will ignore errors from the cache and just fetch from GH instead
 		document, _ := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
@@ -110,7 +87,7 @@ func processDocument(ctx context.Context, document *providercache.VersionListing
 
 	if time.Since(document.LastUpdated) < providercache.AllowedAge {
 		slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
-		return versionsResponse(document.Versions, warningsFromContext(ctx))
+		return versionsResponse(document.Versions, warnings.FromContext(ctx))
 	}
 
 	slog.Info("Document is too old, triggering lambda to update dynamodb", "last_updated", document.LastUpdated)
@@ -118,7 +95,7 @@ func processDocument(ctx context.Context, document *providercache.VersionListing
 		slog.Error("Error triggering lambda", "error", err)
 	}
 
-	return versionsResponse(document.Versions, warningsFromContext(ctx))
+	return versionsResponse(document.Versions, warnings.FromContext(ctx))
 }
 
 func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoName string) (events.APIGatewayProxyResponse, error) {
@@ -130,17 +107,19 @@ func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoN
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	return versionsResponse(versions, warningsFromContext(ctx))
+	return versionsResponse(versions, warnings.FromContext(ctx))
 }
 
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
 	slog.Info("Invoking populate provider versions lambda asynchronously to update dynamodb document\n")
 	// invoke the async lambda to update the dynamodb document
-	_, err := config.LambdaClient.Invoke(ctx, &lambda.InvokeInput{
-		FunctionName:   aws.String(os.Getenv("POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME")),
-		InvocationType: "Event", // Event == async
-		Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"type\": \"%s\"}", effectiveNamespace, effectiveType)),
-	})
+	_, err := config.LambdaClient.Invoke(
+		ctx, &lambda.InvokeInput{
+			FunctionName:   aws.String(os.Getenv("POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME")),
+			InvocationType: "Event", // Event == async
+			Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"type\": \"%s\"}", effectiveNamespace, effectiveType)),
+		},
+	)
 	if err != nil {
 		slog.Error("Error invoking lambda", "error", err)
 		return err
