@@ -208,6 +208,9 @@ func downloadShaSums(ctx context.Context, assets []github.ReleaseAsset) (map[str
 			sums[parts[1]] = parts[0]
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read asset contents: %w", err)
+	}
 	return sums, nil
 }
 
