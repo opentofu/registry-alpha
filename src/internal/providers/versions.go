@@ -149,12 +149,12 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 	versionCh <- result
 }
 
-func getVersionDownloadDetails(platform platform.Platform, assets []github.ReleaseAsset, shaSums map[string]string) (versionDetails *types.CacheVersionDownloadDetails) {
+func getVersionDownloadDetails(platform platform.Platform, assets []github.ReleaseAsset, shaSums map[string]string) *types.CacheVersionDownloadDetails {
 	// find the asset for the given platform
 	asset := github.FindAssetBySuffix(assets, fmt.Sprintf("_%s_%s.zip", platform.OS, platform.Arch))
 	if asset == nil {
 		slog.Warn("Could not find asset for platform", "platform", platform)
-		return
+		return nil
 	}
 
 	// get the shasum for the asset
@@ -164,7 +164,7 @@ func getVersionDownloadDetails(platform platform.Platform, assets []github.Relea
 		return nil
 	}
 
-	versionDetails = &types.CacheVersionDownloadDetails{
+	return &types.CacheVersionDownloadDetails{
 		Platform:            platform,
 		Filename:            asset.Name,
 		DownloadURL:         asset.DownloadURL,
@@ -172,8 +172,6 @@ func getVersionDownloadDetails(platform platform.Platform, assets []github.Relea
 		SHASumsSignatureURL: "",
 		SHASum:              shasum,
 	}
-
-	return nil
 }
 
 func downloadShaSums(ctx context.Context, assets []github.ReleaseAsset) (map[string]string, error) {
