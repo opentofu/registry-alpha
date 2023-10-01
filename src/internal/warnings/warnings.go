@@ -26,7 +26,7 @@ func ProviderWarnings(providerNamespace, providerType string) []string {
 	return nil
 }
 
-var warningsContext = struct{}{} //nolint:gochecknoglobals // This is a commonly used pattern for context binding
+var contextKey = struct{}{} //nolint:gochecknoglobals // This is a commonly used pattern for context binding
 
 // NewContext adds warnings to the parent context.
 func NewContext(ctx context.Context, warnings []string) context.Context {
@@ -36,12 +36,12 @@ func NewContext(ctx context.Context, warnings []string) context.Context {
 	if len(warnings) == 0 {
 		return ctx
 	}
-	return context.WithValue(ctx, warningsContext, warnings)
+	return context.WithValue(ctx, contextKey, warnings)
 }
 
 // FromContext extracts the list of warnings from the context.
 func FromContext(ctx context.Context) []string {
-	if v := ctx.Value(warningsContext); v != nil {
+	if v := ctx.Value(contextKey); v != nil {
 		return v.([]string)
 	}
 	return nil
