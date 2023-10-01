@@ -1,23 +1,23 @@
 variable "region" {
-    default = "eu-west-1"
+  default = "eu-west-1"
 }
 
 variable "github_api_token" {
-    type = string
-    sensitive = true
+  type      = string
+  sensitive = true
 }
 
 variable "route53_zone_id" {
-    type = string
+  type = string
 }
 
 variable "domain_name" {
-    type = string
+  type = string
 }
 
 variable "provider_namespace_redirects" {
-    type = map
-    default = {
-        "hashicorp" : "opentofu"
-    }
+  type = map(any)
+  default = {
+    "hashicorp" : "opentofu"
+  }
 }
