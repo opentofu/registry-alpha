@@ -3,7 +3,7 @@ data "aws_iam_policy_document" "assume_lambda_role" {
     actions = ["sts:AssumeRole"]
 
     principals {
-      type        = "Service"
+      type = "Service"
       identifiers = [
         "apigateway.amazonaws.com",
         "lambda.amazonaws.com"

@@ -6,7 +6,7 @@ resource "aws_acm_certificate" "api" {
 }
 
 data "aws_route53_zone" "public" {
-  zone_id     = var.route53_zone_id
+  zone_id = var.route53_zone_id
 }
 
 resource "aws_route53_record" "api_validation" {
@@ -46,6 +46,6 @@ resource "aws_route53_record" "api" {
 }
 
 output "nameservers" {
-  value = data.aws_route53_zone.public.name_servers
+  value       = data.aws_route53_zone.public.name_servers
   description = "The name servers for the hosted zone."
 }
