@@ -3,12 +3,16 @@ name: Continuous Deployment
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
 
 jobs:
   deploy:
     name: Run Terraform
     runs-on: ubuntu-latest
-
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -18,7 +22,7 @@ jobs:
           terraform_version: 1.5.6
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v4 # https://github.com/aws-actions/configure-aws-credentials#sample-iam-oidc-cloudformation-template
         with:
           role-to-assume: arn:aws:iam::743518529013:role/GithubActions-AssumeRoleWithAction-Registry
           aws-region: eu-west-1
@@ -27,4 +31,4 @@ jobs:
         run: |
           terraform init
           terraform workspace select dev
-          terraform apply -auto-approve
+          terraform apply -var="github_api_token=${{ github.token }} " -var="route53_zone_id=Z08649001JBA38NN3K55" -var="domain_name=devregistry.opentofu.org" -auto-approve
