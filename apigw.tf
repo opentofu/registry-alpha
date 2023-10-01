@@ -3,6 +3,30 @@ resource "aws_api_gateway_rest_api" "api" {
   description = "API Gateway for the OpenTofu Registry"
 }
 
+resource "aws_api_gateway_resource" "github" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
+  path_part   = "github"
+}
+
+resource "aws_api_gateway_resource" "github_graphql_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_resource.github.id
+  path_part   = "graphql"
+}
+
+resource "aws_api_gateway_resource" "github_rest" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_resource.github.id
+  path_part   = "rest"
+}
+
+resource "aws_api_gateway_resource" "github_rest_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_resource.github_rest.id
+  path_part   = "{proxy+}"
+}
+
 resource "aws_api_gateway_resource" "well_known" {
   rest_api_id = aws_api_gateway_rest_api.api.id
   parent_id   = aws_api_gateway_rest_api.api.root_resource_id
@@ -248,6 +272,66 @@ resource "aws_api_gateway_integration" "metadata_integration" {
   uri                     = aws_lambda_function.api_function.invoke_arn
 }
 
+resource "aws_api_gateway_method" "github_rest_method" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.github_rest_proxy.id
+  http_method   = "GET"
+  authorization = "NONE"
+
+  request_parameters = {
+    "method.request.path.proxy"           = true,
+    "method.request.header.Authorization" = true
+  }
+}
+
+resource "aws_api_gateway_integration" "github_rest_integration" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.github_rest_proxy.id
+  http_method = aws_api_gateway_method.github_rest_method.http_method
+
+  integration_http_method = "GET"
+  type                    = "HTTP_PROXY"
+  uri                     = "https://api.github.com/{proxy}"
+
+  request_parameters = {
+    "integration.request.path.proxy" = "method.request.path.proxy"
+  }
+
+  cache_key_parameters = [
+    "method.request.path.proxy"
+  ]
+}
+
+resource "aws_api_gateway_method" "github_graphql_method" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.github_graphql_proxy.id
+  http_method   = "POST"
+  authorization = "NONE"
+
+  request_parameters = {
+    "method.request.header.Authorization" = true
+  }
+}
+
+resource "aws_api_gateway_integration" "github_graphql_integration" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.github_graphql_proxy.id
+  http_method = aws_api_gateway_method.github_graphql_method.http_method
+
+  integration_http_method = "POST"
+  type                    = "HTTP_PROXY"
+  uri                     = "https://api.github.com/graphql"
+
+  request_parameters = {
+    "integration.request.header.body" = "method.request.body"
+  }
+
+  cache_key_parameters = [
+    "integration.request.header.body"
+  ]
+}
+
+
 resource "aws_api_gateway_deployment" "deployment" {
   depends_on = [
     aws_api_gateway_method.provider_download_method,
@@ -263,7 +347,13 @@ resource "aws_api_gateway_deployment" "deployment" {
     aws_api_gateway_integration.module_list_versions_integration,
 
     aws_api_gateway_method.metadata_method,
-    aws_api_gateway_integration.metadata_integration
+    aws_api_gateway_integration.metadata_integration,
+
+    aws_api_gateway_method.github_rest_method,
+    aws_api_gateway_integration.github_rest_integration,
+
+    aws_api_gateway_method.github_graphql_method,
+    aws_api_gateway_integration.github_graphql_integration
   ]
   rest_api_id = aws_api_gateway_rest_api.api.id
 
@@ -308,12 +398,12 @@ resource "aws_api_gateway_method_settings" "download_method_settings" {
   method_path = "~1v1~1providers~1{namespace}~1{type}~1{version}~1download~1{os}~1{arch}/GET"
 
   settings {
-    metrics_enabled                         = true
-    logging_level                           = "INFO"
-    data_trace_enabled                      = true
-    caching_enabled                         = true
+    metrics_enabled    = true
+    logging_level      = "INFO"
+    data_trace_enabled = true
+    caching_enabled    = true
     // 60 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (60*60)
+    cache_ttl_in_seconds                    = (60 * 60)
     require_authorization_for_cache_control = false
   }
 }
@@ -326,12 +416,12 @@ resource "aws_api_gateway_method_settings" "provider_list_versions_method_settin
   method_path = "~1v1~1providers~1{namespace}~1{type}~1versions/GET"
 
   settings {
-    metrics_enabled                         = true
-    logging_level                           = "INFO"
-    data_trace_enabled                      = true
-    caching_enabled                         = true
+    metrics_enabled    = true
+    logging_level      = "INFO"
+    data_trace_enabled = true
+    caching_enabled    = true
     // 60 minutes, to ensure we're over the (current) one hour limit of backend cache TTL
-    cache_ttl_in_seconds                    = (60*60)
+    cache_ttl_in_seconds                    = (60 * 60)
     require_authorization_for_cache_control = false
   }
 }
@@ -344,12 +434,12 @@ resource "aws_api_gateway_method_settings" "module_download_method_settings" {
   method_path = "~1v1~modules~1{namespace}~1{name}~1{system}~1{version}~1download/GET"
 
   settings {
-    metrics_enabled                         = true
-    logging_level                           = "INFO"
-    data_trace_enabled                      = true
-    caching_enabled                         = true
+    metrics_enabled    = true
+    logging_level      = "INFO"
+    data_trace_enabled = true
+    caching_enabled    = true
     // 60 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (60*60)
+    cache_ttl_in_seconds                    = (60 * 60)
     require_authorization_for_cache_control = false
   }
 }
@@ -362,12 +452,12 @@ resource "aws_api_gateway_method_settings" "module_list_versions_method_settings
   method_path = "~1v1~modules~1{namespace}~1{name}~1{system}~1versions/GET"
 
   settings {
-    metrics_enabled                         = true
-    logging_level                           = "INFO"
-    data_trace_enabled                      = true
-    caching_enabled                         = true
+    metrics_enabled    = true
+    logging_level      = "INFO"
+    data_trace_enabled = true
+    caching_enabled    = true
     // 60 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (60*60)
+    cache_ttl_in_seconds                    = (60 * 60)
     require_authorization_for_cache_control = false
   }
 }
@@ -380,12 +470,48 @@ resource "aws_api_gateway_method_settings" "well_known_method_settings" {
   method_path = ".well-known~1terraform.json/GET"
 
   settings {
-    metrics_enabled                         = true
-    logging_level                           = "INFO"
-    data_trace_enabled                      = true
-    caching_enabled                         = true
+    metrics_enabled    = true
+    logging_level      = "INFO"
+    data_trace_enabled = true
+    caching_enabled    = true
     // 60 minutes to keep it consistent with the provider versions cache TTL
-    cache_ttl_in_seconds                    = (60*60)
+    cache_ttl_in_seconds                    = (60 * 60)
+    require_authorization_for_cache_control = false
+  }
+}
+
+resource "aws_api_gateway_method_settings" "github_rest_method_settings" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+
+  # This encodes `/` as `~1` to provide the correct path for the method
+  method_path = "~1github~1rest~1/GET"
+
+  settings {
+    metrics_enabled    = true
+    logging_level      = "INFO"
+    data_trace_enabled = true
+    caching_enabled    = true
+    // 50 minutes to keep it consistent with the other caching layers' TTL
+    cache_ttl_in_seconds                    = (50 * 60)
+    require_authorization_for_cache_control = false
+  }
+}
+
+resource "aws_api_gateway_method_settings" "github_graphql_method_settings" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  stage_name  = aws_api_gateway_stage.stage.stage_name
+
+  # This encodes `/` as `~1` to provide the correct path for the method
+  method_path = "~1github~1graphql~1{proxy}/POST"
+
+  settings {
+    metrics_enabled    = true
+    logging_level      = "INFO"
+    data_trace_enabled = true
+    caching_enabled    = true
+    // 50 minutes to keep it consistent with the other caching layers' TTL
+    cache_ttl_in_seconds                    = (50 * 60)
     require_authorization_for_cache_control = false
   }
 }
