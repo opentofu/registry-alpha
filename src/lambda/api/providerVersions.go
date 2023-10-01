@@ -13,8 +13,8 @@ import (
 	"github.com/opentofu/registry/internal/config"
 	"github.com/opentofu/registry/internal/github"
 	"github.com/opentofu/registry/internal/providers"
-	"github.com/opentofu/registry/internal/warnings"
 	"github.com/opentofu/registry/internal/providers/types"
+	"github.com/opentofu/registry/internal/warnings"
 	"golang.org/x/exp/slog"
 )
 
@@ -40,7 +40,7 @@ func getListProvidersPathParams(req events.APIGatewayProxyRequest) ListProviders
 
 type ListProviderVersionsResponse struct {
 	Versions []types.Version `json:"versions"`
-	Warnings []string            `json:"warnings,omitempty"`
+	Warnings []string        `json:"warnings,omitempty"`
 }
 
 func listProviderVersions(config config.Config) LambdaFunc {
@@ -107,7 +107,7 @@ func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoN
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	return versionsResponse(versions.ToVersions(), warnings.FromContext(ctx))
+	return versionsResponse(versionList.ToVersions(), warnings.FromContext(ctx))
 }
 
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
@@ -125,7 +125,7 @@ func triggerPopulateProviderVersions(ctx context.Context, config config.Config, 
 	return nil
 }
 
-func versionsResponse(versions []providers.Version, warnings []string) (events.APIGatewayProxyResponse, error) {
+func versionsResponse(versions []types.Version, warnings []string) (events.APIGatewayProxyResponse, error) {
 	response := ListProviderVersionsResponse{
 		Versions: versions,
 	}
