@@ -1,4 +1,4 @@
-name: Continuous Deployment
+name: Dev Deployment
 
 on:
   push:
@@ -22,8 +22,10 @@ jobs:
           terraform_version: 1.5.6
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4 # https://github.com/aws-actions/configure-aws-credentials#sample-iam-oidc-cloudformation-template
+        uses: aws-actions/configure-aws-credentials@v4
         with:
+          # A role can be created by following the documentation here:
+          # https://github.com/aws-actions/configure-aws-credentials#sample-iam-oidc-cloudformation-template
           role-to-assume: arn:aws:iam::743518529013:role/GithubActions-AssumeRoleWithAction-Registry
           aws-region: eu-west-1
 
