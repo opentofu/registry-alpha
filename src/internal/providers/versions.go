@@ -251,7 +251,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		}
 
 		if release == nil {
-			return fmt.Errorf("release not found")
+			return newFetchError("failed to find release", ErrCodeReleaseNotFound, nil)
 		}
 
 		// Initialize the VersionDetails struct.
@@ -263,6 +263,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		// Find and parse the manifest from the release assets.
 		manifest, manifestErr := findAndParseManifest(tracedCtx, release.ReleaseAssets.Nodes)
 		if manifestErr != nil {
+			return newFetchError("failed to find and parse manifest", ErrCodeManifestNotFound, manifestErr)
 			return fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
 		}
 
@@ -275,7 +276,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		// Identify the appropriate asset for download based on OS and architecture.
 		assetToDownload := github.FindAssetBySuffix(release.ReleaseAssets.Nodes, fmt.Sprintf("_%s_%s.zip", os, arch))
 		if assetToDownload == nil {
-			return fmt.Errorf("could not find asset to download")
+			return newFetchError("failed to find asset to download", ErrCodeAssetNotFound, nil)
 		}
 		versionDetails.Filename = assetToDownload.Name
 		versionDetails.DownloadURL = assetToDownload.DownloadURL
@@ -286,7 +287,7 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 
 		if shaSumsAsset == nil || shasumsSigAsset == nil {
 			slog.Error("Could not find shasums or its signature asset")
-			return fmt.Errorf("could not find shasums or its signature asset")
+			return newFetchError("failed to find shasums or its signature asset", ErrCodeSHASumsNotFound, nil)
 		}
 
 		versionDetails.SHASumsURL = shaSumsAsset.DownloadURL
@@ -296,14 +297,14 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		shaSum, shaSumErr := getShaSum(tracedCtx, shaSumsAsset.DownloadURL, versionDetails.Filename)
 		if shaSumErr != nil {
 			slog.Error("Could not get shasum", "error", shaSumErr)
-			return fmt.Errorf("failed to get shasum: %w", shaSumErr)
+			return newFetchError("failed to get shasum: %w", ErrCodeSHASumsNotFound, shaSumErr)
 		}
 		versionDetails.SHASum = shaSum
 
 		publicKeys, keysErr := KeysForNamespace(namespace)
 		if keysErr != nil {
 			slog.Error("Could not get public keys", "error", keysErr)
-			return fmt.Errorf("failed to get public keys: %w", keysErr)
+			return newFetchError("failed to get public keys", ErrCodeCouldNotGetPublicKeys, keysErr)
 		}
 
 		versionDetails.SigningKeys = types.SigningKeys{
