@@ -4,7 +4,7 @@ import "time"
 
 type Version struct {
 	Version     string `json:"version"`
-	DownloadURL string `json:"download_url"` // The direct URL to download the module.
+	DownloadURL string `json:"download_url,omitempty"` // The direct URL to download the module.
 }
 
 // ToVersionListResponse converts a Version to a Version that's friendly with the list response.
