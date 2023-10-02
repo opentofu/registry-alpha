@@ -84,9 +84,9 @@ func downloadProviderVersion(config config.Config) LambdaFunc {
 func fetchVersionFromGithub(ctx context.Context, config config.Config, effectiveNamespace string, repoName string, params DownloadHandlerPathParams) (events.APIGatewayProxyResponse, error) {
 	versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, repoName, params.Version, params.OS, params.Architecture)
 	if err != nil {
-		var fetchErr providers.FetchError
+		var fetchErr *providers.FetchError
 		// if it's a providers.FetchError
-		if errors.As(err, &providers.FetchError{}) {
+		if errors.As(err, &fetchErr) {
 			if fetchErr.Code == providers.ErrCodeReleaseNotFound {
 				slog.Info("Release not found in repo")
 				return NotFoundResponse, nil

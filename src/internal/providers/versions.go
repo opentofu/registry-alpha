@@ -264,7 +264,6 @@ func GetVersion(ctx context.Context, ghClient *githubv4.Client, namespace string
 		manifest, manifestErr := findAndParseManifest(tracedCtx, release.ReleaseAssets.Nodes)
 		if manifestErr != nil {
 			return newFetchError("failed to find and parse manifest", ErrCodeManifestNotFound, manifestErr)
-			return fmt.Errorf("failed to find and parse manifest: %w", manifestErr)
 		}
 
 		if manifest != nil {
