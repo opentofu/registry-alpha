@@ -69,7 +69,11 @@ func (l VersionList) ToVersions() []Version {
 func (i *CacheItem) GetVersionDetails(version string, os string, arch string) (*VersionDetails, bool) {
 	for _, v := range i.Versions {
 		if v.Version == version {
-			return v.GetVersionDetails(os, arch), true
+			versionDetails := v.GetVersionDetails(os, arch)
+			if versionDetails == nil {
+				return nil, false
+			}
+			return versionDetails, true
 		}
 	}
 	return nil, false
