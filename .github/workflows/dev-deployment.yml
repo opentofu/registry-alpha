@@ -13,6 +13,12 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    env:
+      TF_IN_AUTOMATION: true
+
+      TF_VAR_github_api_token: ${{ secrets.DEVREGISTRY_GITHUB_TOKEN }}
+      TF_VAR_route53_zone_id: ${{ secrets.DEVREGISTRY_ZONE_ID }}
+      TF_VAR_domain_name: ${{ secrets.DEVREGISTRY_DOMAIN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -22,15 +28,26 @@ jobs:
           terraform_version: 1.5.6
 
       - name: Configure AWS Credentials
+        if: success() # Only run if previous steps were successful
         uses: aws-actions/configure-aws-credentials@v4
         with:
           # A role can be created by following the documentation here:
           # https://github.com/aws-actions/configure-aws-credentials#sample-iam-oidc-cloudformation-template
-          role-to-assume: arn:aws:iam::743518529013:role/GithubActions-AssumeRoleWithAction-Registry
-          aws-region: eu-west-1
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+        continue-on-error: false # Fail the workflow if AWS configuration fails
+
+      - name: Initialize Terraform
+        if: success()
+        run: terraform init
+        continue-on-error: false
+
+      - name: Select Terraform Workspace
+        if: success()
+        run: terraform workspace select dev
+        continue-on-error: false
 
       - name: Run terraform
-        run: |
-          terraform init
-          terraform workspace select dev
-          terraform apply -var="github_api_token=${{ github.token }} " -var="route53_zone_id=Z08649001JBA38NN3K55" -var="domain_name=devregistry.opentofu.org" -auto-approve
+        if: success()
+        run:
+          terraform apply -auto-approve
