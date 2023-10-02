@@ -135,6 +135,13 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 	shaSumsURL := github.FindAssetBySuffix(assets, "_SHA256SUMS")
 	shaSumsSignatureURL := github.FindAssetBySuffix(assets, "_SHA256SUMS.sig")
 
+	if shaSumsSignatureURL == nil {
+		// make an empty one
+		shaSumsSignatureURL = &github.ReleaseAsset{
+			DownloadURL: "",
+		}
+	}
+
 	// for each of the supported platforms, we need to find the appropriate assets
 	// and add them to the version result
 	for _, platform := range platforms {
