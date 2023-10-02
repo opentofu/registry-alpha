@@ -29,6 +29,7 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 			versions = append(versions, Version{
 				// Normalize the version string to remove the leading "v" if it exists.
 				Version: strings.TrimPrefix(release.TagName, "v"),
+				DownloadURL: GetDownloadURL(namespace, name, release.TagName),
 			})
 		}
 

@@ -100,7 +100,8 @@ data "aws_iam_policy_document" "dynamodb_policy" {
     ]
 
     resources = [
-      aws_dynamodb_table.provider_versions.arn
+      aws_dynamodb_table.provider_versions.arn,
+      aws_dynamodb_table.module_versions.arn,
     ]
   }
 }

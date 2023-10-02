@@ -38,6 +38,8 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := modules.GetRepoName(params.System, params.Name)
 
+		// TODO: Fetch from cache if it exists
+
 		// check if the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
 		if err != nil {

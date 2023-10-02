@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	gogithub "github.com/google/go-github/v54/github"
 	"github.com/opentofu/registry/internal/github"
+	"github.com/opentofu/registry/internal/modules/modulecache"
 	"github.com/opentofu/registry/internal/providers/providercache"
 	"github.com/opentofu/registry/internal/secrets"
 	"github.com/shurcooL/githubv4"
@@ -41,6 +42,7 @@ type Config struct {
 
 	LambdaClient         *lambda.Client
 	ProviderVersionCache *providercache.Handler
+	ModuleVersionCache   *modulecache.Handler
 	SecretsHandler       *secrets.Handler
 
 	ProviderRedirects map[string]string
@@ -75,8 +77,8 @@ func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (confi
 		return nil, err
 	}
 
-	tableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
-	if tableName == "" {
+	providerTableName := os.Getenv("PROVIDER_VERSIONS_TABLE_NAME")
+	if providerTableName == "" {
 		err = fmt.Errorf("PROVIDER_VERSIONS_TABLE_NAME environment variable not set")
 		return nil, err
 	}
@@ -90,12 +92,19 @@ func (c Builder) BuildConfig(ctx context.Context, xraySegmentName string) (confi
 		}
 	}
 
+	moduleTableName := os.Getenv("MODULE_VERSIONS_TABLE_NAME")
+	if providerTableName == "" {
+		err = fmt.Errorf("PROVIDER_VERSIONS_TABLE_NAME environment variable not set")
+		return nil, err
+	}
+
 	config = &Config{
 		ManagedGithubClient: github.NewManagedGithubClient(githubAPIToken),
 		RawGithubv4Client:   github.NewRawGithubv4Client(githubAPIToken),
 
 		SecretsHandler:       secretsHandler,
-		ProviderVersionCache: providercache.NewHandler(awsConfig, tableName),
+		ProviderVersionCache: providercache.NewHandler(awsConfig, providerTableName),
+		ModuleVersionCache:   modulecache.NewHandler(awsConfig, moduleTableName),
 		LambdaClient:         lambda.NewFromConfig(awsConfig),
 
 		ProviderRedirects: providerRedirects,
