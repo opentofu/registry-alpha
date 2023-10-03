@@ -3,10 +3,6 @@ package warnings
 
 import "context"
 
-// TODO: add warnings for any archived providers based on the github repo status
-// TODO: consider more scalable approach to warn users, do we need it at all?
-// TODO: How to govern the warnings, i.e. how to align their correctness with provider maintainers?
-
 // ProviderWarnings return the list of warnings for a given provider identified by its namespace and type
 //
 // Example: registry.terraform.io/hashicorp/terraform
