@@ -115,11 +115,6 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 		protocols = manifest.Metadata.ProtocolVersions
 	}
 
-	result.Version = types.CacheVersion{
-		Version:   strings.TrimPrefix(r.TagName, "v"),
-		Protocols: protocols,
-	}
-
 	slog.Info("Fetching shasums")
 	// download the shasums file so that we can get the checksum for each platform
 	shaSums, err := downloadShaSums(ctx, assets)
@@ -142,6 +137,7 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 		}
 	}
 
+	downloadDetails := make([]types.CacheVersionDownloadDetails, 0, len(platforms))
 	// for each of the supported platforms, we need to find the appropriate assets
 	// and add them to the version result
 	for _, platform := range platforms {
@@ -150,9 +146,17 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 		if details != nil {
 			details.SHASumsURL = shaSumsURL.DownloadURL
 			details.SHASumsSignatureURL = shaSumsSignatureURL.DownloadURL
-			result.Version.DownloadDetails = append(result.Version.DownloadDetails, *details)
+			downloadDetails = append(downloadDetails, *details)
 		}
 	}
+
+	// only populate the version if we have all download details
+	result.Version = types.CacheVersion{
+		Version:         strings.TrimPrefix(r.TagName, "v"),
+		Protocols:       protocols,
+		DownloadDetails: downloadDetails,
+	}
+
 	versionCh <- result
 }
 
