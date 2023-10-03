@@ -92,8 +92,6 @@ func getDownloadModuleHandlerPathParams(req events.APIGatewayProxyRequest) Downl
 }
 
 func getReleaseTag(ctx context.Context, config config.Config, namespace string, repoName string, version string) (string, error) {
-	// TODO: Create a modulecache, similar to the providercache, and use it here to avoid unnecessary API calls to GitHub
-	// First we check if a tag with "v" prefix exists in GitHub
 	versionWithPrefix := fmt.Sprintf("v%s", version)
 	release, err := github.FindRelease(ctx, config.RawGithubv4Client, namespace, repoName, versionWithPrefix)
 	if err != nil {

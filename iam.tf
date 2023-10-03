@@ -126,7 +126,8 @@ data "aws_iam_policy_document" "populate_provider_versions_policy" {
     ]
 
     resources = [
-      aws_lambda_function.populate_provider_versions_function.arn
+      aws_lambda_function.populate_provider_versions_function.arn,
+      aws_lambda_function.populate_module_versions_function.arn
     ]
   }
 }
