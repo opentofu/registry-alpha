@@ -82,8 +82,13 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		return nil
 	})
 
+	if err != nil {
+		slog.Info("Failed to find versions", "error", err)
+		return nil, err
+	}
+
 	slog.Info("Successfully found versions", "versions", len(versions))
-	return versions, err
+	return versions, nil
 }
 
 // getVersionFromGithubRelease fetches and returns detailed information about a specific version of a provider hosted on GitHub.
