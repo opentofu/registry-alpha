@@ -382,6 +382,7 @@ resource "aws_cloudwatch_log_group" "apigw_log_group" {
 }
 
 resource "aws_api_gateway_stage" "stage" {
+  depends_on = [aws_cloudwatch_log_group.apigw_log_group]
   deployment_id = aws_api_gateway_deployment.deployment.id
   rest_api_id   = aws_api_gateway_rest_api.api.id
   stage_name    = local.stage_name

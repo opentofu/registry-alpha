@@ -38,6 +38,7 @@ data "archive_file" "populate_provider_versions_archive" {
 
 // create the lambda function from zip file
 resource "aws_lambda_function" "api_function" {
+  depends_on = [aws_cloudwatch_log_group.api_function_log_group]
   function_name = "${replace(var.domain_name, ".", "-")}-registry-handler"
   description   = "A basic lambda to handle registry api events"
   role          = aws_iam_role.lambda.arn
@@ -75,6 +76,7 @@ resource "aws_lambda_provisioned_concurrency_config" "api_function" {
 
 // create the lambda function from zip file
 resource "aws_lambda_function" "populate_provider_versions_function" {
+  depends_on = [aws_cloudwatch_log_group.populate_provider_versions_function_log_group]
   function_name = "${replace(var.domain_name, ".", "-")}-populate-provider-versions"
   description   = "A basic lambda to handle populating provider versions in dynamodb"
   role          = aws_iam_role.lambda.arn
