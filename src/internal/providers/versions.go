@@ -112,7 +112,7 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 
 	// attach the protocol versions to the version result
 	if manifest != nil {
-		slog.Error("Found manifest", "protocols", manifest.Metadata.ProtocolVersions)
+		slog.Info("Found manifest", "protocols", manifest.Metadata.ProtocolVersions)
 		protocols = manifest.Metadata.ProtocolVersions
 	}
 
