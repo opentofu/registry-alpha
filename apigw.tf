@@ -1,6 +1,15 @@
+locals {
+  stage_name = "${replace(var.domain_name, ".", "-")}-opentofu-registry"
+}
+
 resource "aws_api_gateway_rest_api" "api" {
   name        = "${var.domain_name}-opentofu-registry"
   description = "API Gateway for the OpenTofu Registry"
+}
+
+resource "aws_cloudwatch_log_group" "api_gateway_execution_logs" {
+  name = "API-Gateway-Execution-Logs_${aws_api_gateway_rest_api.api.id}/${local.stage_name}"
+  retention_in_days = 7
 }
 
 resource "aws_api_gateway_resource" "github" {
@@ -375,7 +384,7 @@ resource "aws_cloudwatch_log_group" "apigw_log_group" {
 resource "aws_api_gateway_stage" "stage" {
   deployment_id = aws_api_gateway_deployment.deployment.id
   rest_api_id   = aws_api_gateway_rest_api.api.id
-  stage_name    = "${replace(var.domain_name, ".", "-")}-opentofu-registry"
+  stage_name    = local.stage_name
 
   xray_tracing_enabled = true
 
