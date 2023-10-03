@@ -20,6 +20,17 @@ resource "null_resource" "populate_provider_versions_binary" {
   }
 }
 
+resource "null_resource" "populate_module_versions_binary" {
+  provisioner "local-exec" {
+    command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -tags lambda.norpc -ldflags='-s -w' -o ../populate_module_versions_bootstrap/bootstrap ./lambda/populate_module_versions"
+    working_dir = "./src"
+  }
+
+  triggers = {
+    always_run = timestamp()
+  }
+}
+
 data "archive_file" "api_function_archive" {
   depends_on = [null_resource.api_function_binary]
 
@@ -34,6 +45,14 @@ data "archive_file" "populate_provider_versions_archive" {
   type        = "zip"
   source_file = "./populate_provider_versions_bootstrap/bootstrap"
   output_path = "populate_provider_versions_bootstrap.zip"
+}
+
+data "archive_file" "populate_module_versions_archive" {
+  depends_on = [null_resource.populate_module_versions_binary]
+
+  type        = "zip"
+  source_file = "./populate_module_versions_bootstrap/bootstrap"
+  output_path = "populate_module_versions_bootstrap.zip"
 }
 
 // create the lambda function from zip file
@@ -61,6 +80,9 @@ resource "aws_lambda_function" "api_function" {
       GITHUB_TOKEN_SECRET_ASM_NAME             = aws_secretsmanager_secret.github_api_token.name
       PROVIDER_NAMESPACE_REDIRECTS             = jsonencode(var.provider_namespace_redirects)
       PROVIDER_VERSIONS_TABLE_NAME             = aws_dynamodb_table.provider_versions.name
+      MODULE_VERSIONS_TABLE_NAME               = aws_dynamodb_table.module_versions.name
+
+      POPULATE_MODULE_VERSIONS_FUNCTION_NAME  = aws_lambda_function.populate_module_versions_function.function_name
       POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME = aws_lambda_function.populate_provider_versions_function.function_name
       GITHUB_API_GW_URL                        = var.domain_name
     }
@@ -84,7 +106,7 @@ resource "aws_lambda_function" "populate_provider_versions_function" {
   timeout       = 10 * 60
 
   filename         = data.archive_file.populate_provider_versions_archive.output_path
-  source_code_hash = data.archive_file.api_function_archive.output_base64sha256
+  source_code_hash = data.archive_file.populate_provider_versions_archive.output_base64sha256
 
   runtime = "provided.al2"
 
@@ -95,6 +117,33 @@ resource "aws_lambda_function" "populate_provider_versions_function" {
   environment {
     variables = {
       PROVIDER_VERSIONS_TABLE_NAME = aws_dynamodb_table.provider_versions.name
+      GITHUB_TOKEN_SECRET_ASM_NAME = aws_secretsmanager_secret.github_api_token.name
+      GITHUB_API_GW_URL            = var.domain_name
+    }
+  }
+}
+
+// create the lambda function from zip file
+resource "aws_lambda_function" "populate_module_versions_function" {
+  function_name = "${replace(var.domain_name, ".", "-")}-populate-module-versions"
+  description   = "A basic lambda to handle populating module versions in dynamodb"
+  role          = aws_iam_role.lambda.arn
+  handler       = "populate-module-versions"
+  memory_size   = 128
+  timeout       = 10 * 60
+
+  filename         = data.archive_file.populate_module_versions_archive.output_path
+  source_code_hash = data.archive_file.populate_module_versions_archive.output_base64sha256
+
+  runtime = "provided.al2"
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  environment {
+    variables = {
+      MODULE_VERSIONS_TABLE_NAME = aws_dynamodb_table.module_versions.name
       GITHUB_TOKEN_SECRET_ASM_NAME = aws_secretsmanager_secret.github_api_token.name
       GITHUB_API_GW_URL            = var.domain_name
     }

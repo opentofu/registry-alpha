@@ -9,3 +9,14 @@ resource "aws_dynamodb_table" "provider_versions" {
     type = "S"
   }
 }
+resource "aws_dynamodb_table" "module_versions" {
+  name         = "${var.domain_name}-module-versions"
+  billing_mode = "PAY_PER_REQUEST"
+
+  hash_key = "module"
+
+  attribute {
+    name = "module"
+    type = "S"
+  }
+}

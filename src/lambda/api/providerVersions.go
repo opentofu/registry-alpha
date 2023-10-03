@@ -79,15 +79,12 @@ func listProviderVersions(config config.Config) LambdaFunc {
 func processDocumentForProviderListing(ctx context.Context, document *types.CacheItem, config config.Config, namespace, providerType string) (events.APIGatewayProxyResponse, error) {
 	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
 
-	if !document.IsStale() {
-		slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
-		return versionsResponse(document.Versions.ToVersions())
-	}
-
-	slog.Info("Document is too old, triggering lambda to update dynamodb", "last_updated", document.LastUpdated)
-	if err := triggerPopulateProviderVersions(ctx, config, namespace, providerType); err != nil {
-		// if we can't trigger the lambda, we should still return the cached versions and just log the error
-		slog.Error("Error triggering lambda", "error", err)
+	if document.IsStale() {
+		slog.Info("Document is too old, triggering lambda to update dynamodb", "last_updated", document.LastUpdated)
+		if err := triggerPopulateProviderVersions(ctx, config, namespace, providerType); err != nil {
+			// if we can't trigger the lambda, we should still return the cached versions and just log the error
+			slog.Error("Error triggering lambda", "error", err)
+		}
 	}
 
 	return versionsResponse(document.Versions.ToVersions())

@@ -36,6 +36,8 @@ terraform.rc
 # Build artifacts
 populate_provider_versions_bootstrap
 populate_provider_versions_bootstrap.zip
+populate_module_versions_bootstrap
+populate_module_versions_bootstrap.zip
 
 api_function_bootstrap
 api_bootstrap.zip

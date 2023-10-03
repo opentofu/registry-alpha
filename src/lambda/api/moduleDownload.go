@@ -38,7 +38,13 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := modules.GetRepoName(params.System, params.Name)
 
-		// check if the repo exists
+		key := fmt.Sprintf("%s/%s", params.Namespace, repoName)
+		document, _ := config.ModuleVersionCache.GetItem(ctx, key)
+		if document != nil {
+			return processDocumentForModuleDownload(ctx, config, document, params)
+		}
+
+		// if we don't have the document, we should check that the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
@@ -59,6 +65,25 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 	}
 }
 
+func processDocumentForModuleDownload(ctx context.Context, config config.Config, document *modules.CacheItem, params DownloadModuleHandlerPathParams) (events.APIGatewayProxyResponse, error) {
+	if document.IsStale() {
+		err := triggerPopulateModuleVersions(ctx, config, params.Namespace, params.Name, params.System)
+		if err != nil {
+			// just log the error and still return the document
+			slog.Error("Error triggering populate module versions", "error", err)
+		}
+	}
+
+	version, ok := document.Versions.FindVersion(params.Version)
+	if !ok {
+		return NotFoundResponse, nil
+	}
+
+	return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: "", Headers: map[string]string{
+		"X-Terraform-Get": version.DownloadURL,
+	}}, nil
+}
+
 func getDownloadModuleHandlerPathParams(req events.APIGatewayProxyRequest) DownloadModuleHandlerPathParams {
 	return DownloadModuleHandlerPathParams{
 		Namespace: req.PathParameters["namespace"],
@@ -69,8 +94,6 @@ func getDownloadModuleHandlerPathParams(req events.APIGatewayProxyRequest) Downl
 }
 
 func getReleaseTag(ctx context.Context, config config.Config, namespace string, repoName string, version string) (string, error) {
-	// TODO: Create a modulecache, similar to the providercache, and use it here to avoid unnecessary API calls to GitHub
-	// First we check if a tag with "v" prefix exists in GitHub
 	versionWithPrefix := fmt.Sprintf("v%s", version)
 	release, err := github.FindRelease(ctx, config.RawGithubv4Client, namespace, repoName, versionWithPrefix)
 	if err != nil {
