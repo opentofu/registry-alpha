@@ -13,7 +13,7 @@ import (
 )
 
 // GetVersions fetches a list of versions for a GitHub repository identified by its namespace and name.
-func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []Version, err error) {
+func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions VersionList, err error) {
 	err = xray.Capture(ctx, "module.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
@@ -28,7 +28,7 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		for _, release := range releases {
 			versions = append(versions, Version{
 				// Normalize the version string to remove the leading "v" if it exists.
-				Version: strings.TrimPrefix(release.TagName, "v"),
+				Version:     strings.TrimPrefix(release.TagName, "v"),
 				DownloadURL: GetDownloadURL(namespace, name, release.TagName),
 			})
 		}

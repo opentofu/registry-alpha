@@ -38,9 +38,13 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := modules.GetRepoName(params.System, params.Name)
 
-		// TODO: Fetch from cache if it exists
+		key := fmt.Sprintf("%s/%s", params.Namespace, repoName)
+		document, _ := config.ModuleVersionCache.GetItem(ctx, key)
+		if document != nil {
+			return processDocumentForModuleDownload(document, params, config)
+		}
 
-		// check if the repo exists
+		// if we don't have the document, we should check that the repo exists
 		exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, params.Namespace, repoName)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
@@ -59,6 +63,23 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 			"X-Terraform-Get": fmt.Sprintf("git::https://github.com/%s/%s?ref=%s", params.Namespace, repoName, releaseTag),
 		}}, nil
 	}
+}
+
+func processDocumentForModuleDownload(document *modules.CacheItem, params DownloadModuleHandlerPathParams, c config.Config) (events.APIGatewayProxyResponse, error) {
+	if document.IsStale() {
+		// if the document is stale, we should update it
+		// we don't need to wait for the update to finish, we can just return the current document
+		// TODO: Trigger lambda
+	}
+
+	version, ok := document.Versions.FindVersion(params.Version)
+	if !ok {
+		return NotFoundResponse, nil
+	}
+
+	return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: "", Headers: map[string]string{
+		"X-Terraform-Get": version.DownloadURL,
+	}}, nil
 }
 
 func getDownloadModuleHandlerPathParams(req events.APIGatewayProxyRequest) DownloadModuleHandlerPathParams {

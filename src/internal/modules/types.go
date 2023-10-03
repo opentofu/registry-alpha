@@ -7,9 +7,9 @@ type Version struct {
 	DownloadURL string `json:"download_url,omitempty"` // The direct URL to download the module.
 }
 
-// ToVersionListResponse converts a Version to a Version that's friendly with the list response.
+// toVersionListResponse converts a Version to a Version that's friendly with the list response.
 // this mainly strips out the DownloadURL
-func (v Version) ToVersionListResponse() Version {
+func (v Version) toVersionListResponse() Version {
 	return Version{
 		Version: v.Version,
 	}
@@ -17,11 +17,32 @@ func (v Version) ToVersionListResponse() Version {
 
 const allowedAge = (1 * time.Hour) - (5 * time.Minute) //nolint:gomnd // 55 minutes
 
+// VersionList is a list of versions.
+type VersionList []Version
+
+// ToVersionListResponse converts a VersionList to a VersionList that's friendly with the list response.
+func (v VersionList) ToVersionListResponse() VersionList {
+	var versions VersionList
+	for _, version := range v {
+		versions = append(versions, version.toVersionListResponse())
+	}
+	return versions
+}
+
+func (v VersionList) FindVersion(version string) (*Version, bool) {
+	for _, ver := range v {
+		if ver.Version == version {
+			return &ver, true
+		}
+	}
+	return nil, false
+}
+
 // CacheItem is the item stored in the DynamoDB cache.
 type CacheItem struct {
-	Module      string    `json:"module"`   // The module name.
-	Versions    []Version `json:"versions"` // The versions of the module.
-	LastUpdated time.Time `json:"last_updated"`
+	Module      string      `json:"module"`   // The module name.
+	Versions    VersionList `json:"versions"` // The versions of the module.
+	LastUpdated time.Time   `json:"last_updated"`
 }
 
 func (i *CacheItem) IsStale() bool {

@@ -56,7 +56,7 @@ func listModuleVersions(config config.Config) LambdaFunc {
 		key := fmt.Sprintf("%s/%s", params.Namespace, repoName)
 		document, _ := config.ModuleVersionCache.GetItem(ctx, key)
 		if document != nil {
-			return processDocumentForMdouleListing(document)
+			return processDocumentForModuleVersionListing(document)
 		}
 
 		slog.Info("Document not found in cache, fetching from github")
@@ -64,7 +64,7 @@ func listModuleVersions(config config.Config) LambdaFunc {
 	}
 }
 
-func processDocumentForMdouleListing(document *modules.CacheItem) (events.APIGatewayProxyResponse, error) {
+func processDocumentForModuleVersionListing(document *modules.CacheItem) (events.APIGatewayProxyResponse, error) {
 	slog.Info("Found document in cache", "document", document)
 
 	// if it's not stale. return it!
@@ -77,15 +77,10 @@ func processDocumentForMdouleListing(document *modules.CacheItem) (events.APIGat
 }
 
 func moduleVersionsResponse(document *modules.CacheItem) (events.APIGatewayProxyResponse, error) {
-	responseVersions := make([]modules.Version, len(document.Versions))
-	for i, version := range document.Versions {
-		responseVersions[i] = version.ToVersionListResponse()
-	}
-
 	response := ListModuleVersionsResponse{
 		Modules: []ModulesResponse{
 			{
-				Versions: responseVersions,
+				Versions: document.Versions.ToVersionListResponse(),
 			},
 		},
 	}
@@ -113,10 +108,7 @@ func fetchModuleVersionsFromGitHub(ctx context.Context, config config.Config, pa
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	responseVersions := make([]modules.Version, len(versions))
-	for i, version := range versions {
-		responseVersions[i] = version.ToVersionListResponse()
-	}
+	responseVersions := versions.ToVersionListResponse()
 
 	response := ListModuleVersionsResponse{
 		Modules: []ModulesResponse{
