@@ -49,20 +49,18 @@ func listProviderVersions(config config.Config) LambdaFunc {
 		params.AnnotateLogger()
 
 		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
-		repoName := providers.GetRepoName(params.Type)
 
 		// Warnings lookup: https://github.com/opentofu/registry/issues/108
-		ctx = warnings.NewContext(ctx, warnings.ProviderWarnings(params.Namespace, params.Type))
+		warn := warnings.ProviderWarnings(params.Namespace, params.Type)
 
 		// For now, we will ignore errors from the cache and just fetch from GH instead
-		document, _ := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, params.Type))
-		if document != nil {
-			return processDocumentForProviderListing(ctx, document, config, effectiveNamespace, params.Type)
+		versionList, _ := listVersionsFromCache(ctx, config, effectiveNamespace, params.Type)
+		if len(versionList) > 0 {
+			return versionsResponse(versionList, warn)
 		}
 
-		// now that we know we don't have the document, we should check that the repo exists
-		// if we checked the repo exists before then we are making extra calls to GitHub that we don't need to make.
-		if exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName); !exists {
+		versionList, repoExists, err := listVersionsFromRepository(ctx, config, effectiveNamespace, params.Type)
+		if !repoExists {
 			if err != nil {
 				slog.Error("Error checking if repo exists", "error", err)
 				return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
@@ -71,43 +69,40 @@ func listProviderVersions(config config.Config) LambdaFunc {
 			// if the repo doesn't exist, there's no point in trying to fetch versions
 			return NotFoundResponse, nil
 		}
+		if err != nil {
+			slog.Error("Error fetching versions from github", "error", err)
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+		}
 
-		// if the document didn't exist in the cache, trigger the lambda to populate it and return the current results from GH
+		// if the document didn't exist in the cache, trigger the lambda to populate it
 		if err := triggerPopulateProviderVersions(ctx, config, effectiveNamespace, params.Type); err != nil {
 			slog.Error("Error triggering lambda", "error", err)
 		}
 
-		return fetchFromGithub(ctx, config, effectiveNamespace, repoName)
+		return versionsResponse(versionList, warn)
 	}
 }
 
-func processDocumentForProviderListing(ctx context.Context, document *types.CacheItem, config config.Config, namespace, providerType string) (events.APIGatewayProxyResponse, error) {
+func listVersionsFromCache(ctx context.Context, config config.Config, effectiveNamespace, providerType string) ([]types.Version, error) {
+	document, err := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, providerType))
 	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
-
-	if !document.IsStale() {
+	if document != nil && !document.IsStale() {
 		slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
-		return versionsResponse(document.Versions.ToVersions(), warnings.FromContext(ctx))
+		return document.Versions.ToVersions(), err
 	}
-
-	slog.Info("Document is too old, triggering lambda to update dynamodb", "last_updated", document.LastUpdated)
-	if err := triggerPopulateProviderVersions(ctx, config, namespace, providerType); err != nil {
-		// if we can't trigger the lambda, we should still return the cached versions and just log the error
-		slog.Error("Error triggering lambda", "error", err)
-	}
-
-	return versionsResponse(document.Versions.ToVersions(), warnings.FromContext(ctx))
+	return nil, err
 }
 
-func fetchFromGithub(ctx context.Context, config config.Config, namespace, repoName string) (events.APIGatewayProxyResponse, error) {
-	slog.Info("Fetching versions from github\n")
-
-	versionList, err := providers.GetVersions(ctx, config.RawGithubv4Client, namespace, repoName)
+func listVersionsFromRepository(ctx context.Context, config config.Config, effectiveNamespace, providerType string) ([]types.Version, bool, error) {
+	repoName := providers.GetRepoName(providerType)
+	exists, err := github.RepositoryExists(ctx, config.ManagedGithubClient, effectiveNamespace, repoName)
 	if err != nil {
-		slog.Error("Error fetching versions from github", "error", err)
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+		return nil, exists, err
 	}
 
-	return versionsResponse(versionList.ToVersions(), warnings.FromContext(ctx))
+	slog.Info("Fetching versions from github\n")
+	versionList, err := providers.GetVersions(ctx, config.RawGithubv4Client, effectiveNamespace, repoName)
+	return versionList.ToVersions(), exists, err
 }
 
 func triggerPopulateProviderVersions(ctx context.Context, config config.Config, effectiveNamespace string, effectiveType string) error {
