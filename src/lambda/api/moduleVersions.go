@@ -139,7 +139,7 @@ func triggerPopulateModuleVersions(ctx context.Context, config config.Config, na
 	_, err := config.LambdaClient.Invoke(ctx, &lambda.InvokeInput{
 		FunctionName:   aws.String(os.Getenv("POPULATE_MODULE_VERSIONS_FUNCTION_NAME")),
 		InvocationType: "Event", // Event == async
-		Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"name\": \"%s\", \"sytstem\": \"%s\"}", namespace, name, system)),
+		Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"name\": \"%s\", \"system\": \"%s\"}", namespace, name, system)),
 	})
 	if err != nil {
 		slog.Error("Error invoking lambda", "error", err)
