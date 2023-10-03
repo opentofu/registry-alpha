@@ -81,6 +81,8 @@ resource "aws_lambda_function" "api_function" {
       PROVIDER_NAMESPACE_REDIRECTS             = jsonencode(var.provider_namespace_redirects)
       PROVIDER_VERSIONS_TABLE_NAME             = aws_dynamodb_table.provider_versions.name
       MODULE_VERSIONS_TABLE_NAME               = aws_dynamodb_table.module_versions.name
+
+      POPULATE_MODULE_VERSIONS_FUNCTION_NAME  = aws_lambda_function.populate_module_versions_function.function_name
       POPULATE_PROVIDER_VERSIONS_FUNCTION_NAME = aws_lambda_function.populate_provider_versions_function.function_name
       GITHUB_API_GW_URL                        = var.domain_name
     }

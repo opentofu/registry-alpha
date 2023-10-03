@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/opentofu/registry/internal/config"
 	"golang.org/x/exp/slog"
 
@@ -56,7 +59,7 @@ func listModuleVersions(config config.Config) LambdaFunc {
 		key := fmt.Sprintf("%s/%s", params.Namespace, repoName)
 		document, _ := config.ModuleVersionCache.GetItem(ctx, key)
 		if document != nil {
-			return processDocumentForModuleVersionListing(document)
+			return processDocumentForModuleVersionListing(ctx, document, config, params.Namespace, params.Name, params.System)
 		}
 
 		slog.Info("Document not found in cache, fetching from github")
@@ -64,13 +67,17 @@ func listModuleVersions(config config.Config) LambdaFunc {
 	}
 }
 
-func processDocumentForModuleVersionListing(document *modules.CacheItem) (events.APIGatewayProxyResponse, error) {
+func processDocumentForModuleVersionListing(ctx context.Context, document *modules.CacheItem, config config.Config, namespace, name, system string) (events.APIGatewayProxyResponse, error) {
 	slog.Info("Found document in cache", "document", document)
 
 	// if it's not stale. return it!
 	if document.IsStale() {
 		slog.Info("Document is stale, triggering lambda to populate")
-		// if it is stale, trigger the lambda to populate it and return the current results
+		err := triggerPopulateModuleVersions(ctx, config, namespace, name, system)
+		if err != nil {
+			// if we can't trigger the lambda, that's fine. we'll just log it and carry on
+			slog.Error("Error triggering lambda", "error", err)
+		}
 	}
 
 	return moduleVersionsResponse(document)
@@ -124,4 +131,19 @@ func fetchModuleVersionsFromGitHub(ctx context.Context, config config.Config, pa
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 	return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
+}
+
+func triggerPopulateModuleVersions(ctx context.Context, config config.Config, namespace, name, system string) error {
+	slog.Info("Invoking populate module versions lambda asynchronously to update dynamodb document\n")
+	// invoke the async lambda to update the dynamodb document
+	_, err := config.LambdaClient.Invoke(ctx, &lambda.InvokeInput{
+		FunctionName:   aws.String(os.Getenv("POPULATE_MODULE_VERSIONS_FUNCTION_NAME")),
+		InvocationType: "Event", // Event == async
+		Payload:        []byte(fmt.Sprintf("{\"namespace\": \"%s\", \"name\": \"%s\", \"sytstem\": \"%s\"}", namespace, name, system)),
+	})
+	if err != nil {
+		slog.Error("Error invoking lambda", "error", err)
+		return err
+	}
+	return nil
 }

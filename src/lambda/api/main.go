@@ -11,7 +11,7 @@ import (
 type LambdaFunc func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)
 
 func main() {
-	configBuilder := config.NewBuilder(config.WithProviderCache(), config.WithProviderRedirects())
+	configBuilder := config.NewBuilder(config.WithModuleCache(), config.WithProviderCache(), config.WithProviderRedirects())
 
 	config, err := configBuilder.BuildConfig(context.Background(), "registry.buildconfig")
 	if err != nil {
