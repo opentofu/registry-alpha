@@ -35,7 +35,6 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadModuleHandlerPathParams(req)
 		params.AnnotateLogger()
-		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := modules.GetRepoName(params.System, params.Name)
 
 		// check if the repo exists
@@ -48,7 +47,7 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 			return NotFoundResponse, nil
 		}
 
-		releaseTag, err := getReleaseTag(ctx, config, effectiveNamespace, repoName, params.Version)
+		releaseTag, err := getReleaseTag(ctx, config, params.Namespace, repoName, params.Version)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
