@@ -75,7 +75,6 @@ func (b *Builder) SetupProviderCache() *providercache.Handler {
 		panic("PROVIDER_VERSIONS_TABLE_NAME environment variable not set")
 	}
 	return providercache.NewHandler(b.AWSConfig, providerTableName)
-
 }
 
 func (b *Builder) SetupModuleCache() *modulecache.Handler {
