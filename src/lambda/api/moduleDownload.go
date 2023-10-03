@@ -41,7 +41,7 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 		key := fmt.Sprintf("%s/%s", params.Namespace, repoName)
 		document, _ := config.ModuleVersionCache.GetItem(ctx, key)
 		if document != nil {
-			return processDocumentForModuleDownload(document, params, config)
+			return processDocumentForModuleDownload(ctx, config, document, params)
 		}
 
 		// if we don't have the document, we should check that the repo exists
@@ -65,11 +65,13 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 	}
 }
 
-func processDocumentForModuleDownload(document *modules.CacheItem, params DownloadModuleHandlerPathParams, c config.Config) (events.APIGatewayProxyResponse, error) {
+func processDocumentForModuleDownload(ctx context.Context, config config.Config, document *modules.CacheItem, params DownloadModuleHandlerPathParams) (events.APIGatewayProxyResponse, error) {
 	if document.IsStale() {
-		// if the document is stale, we should update it
-		// we don't need to wait for the update to finish, we can just return the current document
-		// TODO: Trigger lambda
+		err := triggerPopulateModuleVersions(ctx, config, params.Namespace, params.Name, params.System)
+		if err != nil {
+			// just log the error and still return the document
+			slog.Error("Error triggering populate module versions", "error", err)
+		}
 	}
 
 	version, ok := document.Versions.FindVersion(params.Version)
