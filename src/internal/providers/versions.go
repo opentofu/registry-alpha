@@ -3,6 +3,7 @@ package providers
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -58,20 +59,26 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		wg.Wait()
 		close(versionCh)
 
+		allErrors := make([]error, 0)
 		for vr := range versionCh {
 			if vr.Err != nil {
 				slog.Error("Failed to process some releases", "error", vr.Err)
-				// we don't want to fail the entire operation if one version fails, just trace the error and continue
+				// we should fail the entire request if we can't process some releases
+				// we can't just return the versions we have because we don't know if they are complete
 				xrayErr := xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
 				if xrayErr != nil {
 					return fmt.Errorf("failed to add error to trace: %w", err)
 				}
-			}
-			if vr.Version.Version != "" {
+				allErrors = append(allErrors, vr.Err)
+			} else if vr.Version.Version != "" {
 				versions = append(versions, vr.Version)
 			}
 		}
 
+		if len(allErrors) > 0 {
+			// join the errors together so we can return them all
+			return fmt.Errorf("failed to process some releases: %w", errors.Join(allErrors...))
+		}
 		return nil
 	})
 
