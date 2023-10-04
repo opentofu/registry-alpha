@@ -87,8 +87,12 @@ func fetchVersionFromGithub(ctx context.Context, config config.Config, effective
 		var fetchErr *providers.FetchError
 		// if it's a providers.FetchError
 		if errors.As(err, &fetchErr) {
-			if fetchErr.Code == providers.ErrCodeReleaseNotFound || fetchErr.Code == providers.ErrCodeAssetNotFound {
+			if fetchErr.Code == providers.ErrCodeReleaseNotFound {
 				slog.Info("Release not found in repo")
+				return NotFoundResponse, nil
+			}
+			if fetchErr.Code == providers.ErrCodeAssetNotFound {
+				slog.Info("Asset for download not found in release")
 				return NotFoundResponse, nil
 			}
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
