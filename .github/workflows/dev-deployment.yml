@@ -12,7 +12,7 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-latest
-    environment: Planning
+    environment: dev-plan
     outputs:
       tfstatus: ${{ steps.plan.outputs.exitcode }}
     permissions:
@@ -90,7 +90,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.tfstatus == 2
     runs-on: ubuntu-latest
-    environment: Applying
+    environment: dev-apply
     permissions:
       id-token: write
       contents: read
