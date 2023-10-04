@@ -1,4 +1,4 @@
-name: Dev Deployment
+name: Prod Deployment
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.ref }}-dev-deploy
+  group: ${{ github.ref }}-prod-deploy
 
 jobs:
   plan:
     name: Plan
     runs-on: ubuntu-latest
-    environment: dev-plan
+    environment: prod-plan
     outputs:
       tfstatus: ${{ steps.plan.outputs.exitcode }}
     permissions:
@@ -47,7 +47,7 @@ jobs:
         run: terraform init
 
       - name: Select Terraform Workspace
-        run: terraform workspace select dev
+        run: terraform workspace select prod
 
       - name: Plan changes
         id: plan
@@ -90,7 +90,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.tfstatus == 2
     runs-on: ubuntu-latest
-    environment: dev-apply
+    environment: prod-apply
     permissions:
       id-token: write
       contents: read
