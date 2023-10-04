@@ -136,5 +136,8 @@ jobs:
       - name: Initialize Terraform
         run: terraform init
 
+      - name: Select Terraform Workspace
+        run: terraform workspace select prod
+
       - name: Apply changes
         run: terraform apply -input=false project.tfplan
