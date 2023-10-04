@@ -21,6 +21,9 @@ jobs:
     env:
       TF_IN_AUTOMATION: true
 
+      # Note: These 3 secrets below are configured as github environment secrets
+      # and not as repository secrets. This allows the usage of consistent names
+      # for the secrets across all workflows.
       TF_VAR_github_api_token: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
       TF_VAR_route53_zone_id: ${{ secrets.REGISTRY_ZONE_ID }}
       TF_VAR_domain_name: ${{ secrets.REGISTRY_DOMAIN }}
