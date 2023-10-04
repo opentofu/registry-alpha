@@ -14,6 +14,8 @@ terraform {
   backend "s3" {
     bucket = "registry-tfstate"
     key    = "terraform.tfstate"
+    dynamodb_table = "terraform_locks"
+
     region = "eu-west-1"
   }
 

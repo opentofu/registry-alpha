@@ -1,0 +1,131 @@
+name: Dev Deployment
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.ref }}-dev-deploy
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    environment: Planning
+    outputs:
+      tfstatus: ${{ steps.plan.outputs.exitcode }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      TF_IN_AUTOMATION: true
+
+      TF_VAR_github_api_token: ${{ secrets.DEVREGISTRY_GITHUB_TOKEN }}
+      TF_VAR_route53_zone_id: ${{ secrets.DEVREGISTRY_ZONE_ID }}
+      TF_VAR_domain_name: ${{ secrets.DEVREGISTRY_DOMAIN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.6
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # A role can be created by following the documentation here:
+          # https://github.com/aws-actions/configure-aws-credentials#sample-iam-oidc-cloudformation-template
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Select Terraform Workspace
+        run: terraform workspace select dev
+
+      - name: Plan changes
+        id: plan
+        run: terraform plan -input=false -detailed-exitcode -out=project.tfplan || true
+
+      - name: Check for failure
+        if: steps.plan.outputs.exitcode != 0 && steps.plan.outputs.exitcode != 2
+        run: |
+          echo "Terraform plan failed"
+          exit 1
+
+      - name: Show the plan
+        run: terraform show project.tfplan
+
+      - name: Generate the random password file
+        if: steps.plan.outputs.exitcode == 2
+        run: openssl rand -hex -out key.bin 64
+
+      - name: Encrypt the plan file using the random key
+        if: steps.plan.outputs.exitcode == 2
+        run: openssl enc -aes-256-cbc -md sha512 -pbkdf2 -iter 100000 -salt -in project.tfplan -out project.tfplan.enc -pass file:./key.bin
+
+      - name: Encrypt the random key with the public keyfile
+        if: steps.plan.outputs.exitcode == 2
+        run: openssl rsautl -encrypt -inkey .github/publickey.pem -pubin -in key.bin -out key.bin.enc
+
+      - name: Archive encrypted artifacts
+        if: steps.plan.outputs.exitcode == 2
+        uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          retention-days: 2
+          path: |
+            project.tfplan.enc
+            key.bin.enc
+            artifacts
+
+  apply:
+    name: Apply
+    needs: plan
+    if: needs.plan.outputs.tfstatus == 2
+    runs-on: ubuntu-latest
+    environment: Applying
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Unarchive encrypted artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: artifacts
+
+      - name: Write the private key to a file
+        run: echo $PRIVATE_KEY | base64 -d > .github/privatekey.pem
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+
+      - name: Decrypt the encrypted key
+        run: openssl rsautl -decrypt -inkey .github/privatekey.pem -in key.bin.enc -out key.bin
+
+      - name: Decrypt the plan file
+        run: openssl enc -d -aes-256-cbc -md sha512 -pbkdf2 -iter 100000 -salt -in project.tfplan.enc -out project.tfplan -pass file:./key.bin
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: eu-west-1
+          role-to-assume: arn:aws:iam::324880187172:role/infra-deployment-applying
+          role-duration-seconds: 1800
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.6
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Apply changes
+        run: terraform apply -input=false project.tfplan
