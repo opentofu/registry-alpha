@@ -125,7 +125,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: eu-west-1
-          role-to-assume: arn:aws:iam::324880187172:role/infra-deployment-applying
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           role-duration-seconds: 1800
 
       - name: Set up Terraform
