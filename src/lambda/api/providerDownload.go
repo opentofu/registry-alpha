@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -83,6 +84,12 @@ func downloadProviderVersion(config config.Config) LambdaFunc {
 func fetchVersionFromGithub(ctx context.Context, config config.Config, effectiveNamespace string, repoName string, params DownloadHandlerPathParams) (events.APIGatewayProxyResponse, error) {
 	versionDownloadResponse, err := providers.GetVersion(ctx, config.RawGithubv4Client, effectiveNamespace, repoName, params.Version, params.OS, params.Architecture)
 	if err != nil {
+		var fetchErr *providers.FetchError
+		// if it's a providers.FetchError
+		if errors.As(err, &fetchErr) {
+			return handleFetchFromGithubErr(fetchErr)
+		}
+
 		slog.Error("Error getting version", "error", err)
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
@@ -93,6 +100,18 @@ func fetchVersionFromGithub(ctx context.Context, config config.Config, effective
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 	return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: string(resBody)}, nil
+}
+
+func handleFetchFromGithubErr(err *providers.FetchError) (events.APIGatewayProxyResponse, error) {
+	if err.Code == providers.ErrCodeReleaseNotFound {
+		slog.Info("Release not found in repo")
+		return NotFoundResponse, nil
+	}
+	if err.Code == providers.ErrCodeAssetNotFound {
+		slog.Info("Asset for download not found in release")
+		return NotFoundResponse, nil
+	}
+	return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 }
 
 func processDocumentForProviderDownload(document *types.CacheItem, effectiveNamespace string, params DownloadHandlerPathParams) (events.APIGatewayProxyResponse, error) {
