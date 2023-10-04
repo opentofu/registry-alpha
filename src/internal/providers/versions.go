@@ -3,7 +3,6 @@ package providers
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -59,33 +58,23 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		wg.Wait()
 		close(versionCh)
 
-		allErrors := make([]error, 0)
 		for vr := range versionCh {
 			if vr.Err != nil {
 				slog.Error("Failed to process some releases", "error", vr.Err)
-				// we should fail the entire request if we can't process some releases
-				// we can't just return the versions we have because we don't know if they are complete
+				// we should not fail the entire operation if we can't process a single release
+				// this is because some GitHub releases may not have the correct assets attached,
+				// and therefore we should just log and skip them
 				xrayErr := xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
 				if xrayErr != nil {
 					return fmt.Errorf("failed to add error to trace: %w", err)
 				}
-				allErrors = append(allErrors, vr.Err)
-			} else if vr.Version.Version != "" {
+			} else if vr.Version.Version != "" && len(vr.Version.DownloadDetails) > 0 {
+				// only add the final list of versions if it's populated and has platforms attached
 				versions = append(versions, vr.Version)
 			}
 		}
-
-		if len(allErrors) > 0 {
-			// join the errors together so we can return them all
-			return fmt.Errorf("failed to process some releases: %w", errors.Join(allErrors...))
-		}
 		return nil
 	})
-
-	if err != nil {
-		slog.Info("Failed to find versions", "error", err)
-		return nil, err
-	}
 
 	slog.Info("Successfully found versions", "versions", len(versions))
 	return versions, nil
@@ -123,7 +112,7 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 
 	// attach the protocol versions to the version result
 	if manifest != nil {
-		slog.Error("Found manifest", "protocols", manifest.Metadata.ProtocolVersions)
+		slog.Info("Found manifest", "protocols", manifest.Metadata.ProtocolVersions)
 		protocols = manifest.Metadata.ProtocolVersions
 	}
 
