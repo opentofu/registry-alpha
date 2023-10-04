@@ -1,4 +1,4 @@
-name: Dev Deployment
+name: Prod Deployment
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.ref }}-dev-deploy
+  group: ${{ github.ref }}-prod-deploy
 
 jobs:
   plan:
@@ -44,7 +44,7 @@ jobs:
         run: terraform init
 
       - name: Select Terraform Workspace
-        run: terraform workspace select dev
+        run: terraform workspace select prod
 
       - name: Plan changes
         id: plan
