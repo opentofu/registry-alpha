@@ -31,9 +31,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - uses: hashicorp/setup-terraform@v2
+      - name: Download OpenTofu
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
         with:
-          terraform_version: 1.5.6
+          github_token: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
+          repo: opentofu/opentofu
+          name: tofu_1.6.0-alpha1_linux_amd64.zip
+          path: .
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -43,24 +48,24 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Initialize Terraform
-        run: terraform init
+      - name: Initialize OpenTofu
+        run: tofu init
 
-      - name: Select Terraform Workspace
-        run: terraform workspace select dev
+      - name: Select OpenTofu Workspace
+        run: tofu workspace select dev
 
       - name: Plan changes
         id: plan
-        run: terraform plan -input=false -detailed-exitcode -out=project.tfplan || true
+        run: tofu plan -input=false -detailed-exitcode -out=project.tfplan || true
 
       - name: Check for failure
         if: steps.plan.outputs.exitcode != 0 && steps.plan.outputs.exitcode != 2
         run: |
-          echo "Terraform plan failed"
+          echo "OpenTofu plan failed"
           exit 1
 
       - name: Show the plan
-        run: terraform show project.tfplan
+        run: tofu show project.tfplan
 
       - name: Generate the random password file
         if: steps.plan.outputs.exitcode == 2
@@ -128,13 +133,17 @@ jobs:
           role-to-assume: arn:aws:iam::324880187172:role/infra-deployment-applying
           role-duration-seconds: 1800
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v2
+      - name: Download OpenTofu
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
         with:
-          terraform_version: 1.5.6
+          github_token: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
+          repo: opentofu/opentofu
+          name: tofu_1.6.0-alpha1_linux_amd64.zip
+          path: .
 
-      - name: Initialize Terraform
-        run: terraform init
+      - name: Initialize OpenTofu
+        run: tofu init
 
       - name: Apply changes
-        run: terraform apply -input=false project.tfplan
+        run: tofu apply -input=false project.tfplan
