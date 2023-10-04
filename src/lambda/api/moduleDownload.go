@@ -35,7 +35,6 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 	return func(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 		params := getDownloadModuleHandlerPathParams(req)
 		params.AnnotateLogger()
-		effectiveNamespace := config.EffectiveProviderNamespace(params.Namespace)
 		repoName := modules.GetRepoName(params.System, params.Name)
 
 		// check if the repo exists
@@ -48,7 +47,7 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 			return NotFoundResponse, nil
 		}
 
-		releaseTag, err := getReleaseTag(ctx, config, effectiveNamespace, repoName, params.Version)
+		releaseTag, err := getReleaseTag(ctx, config, params.Namespace, repoName, params.Version)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
@@ -71,8 +70,7 @@ func getDownloadModuleHandlerPathParams(req events.APIGatewayProxyRequest) Downl
 func getReleaseTag(ctx context.Context, config config.Config, namespace string, repoName string, version string) (string, error) {
 	// TODO: Create a modulecache, similar to the providercache, and use it here to avoid unnecessary API calls to GitHub
 	// First we check if a tag with "v" prefix exists in GitHub
-	versionWithPrefix := fmt.Sprintf("v%s", version)
-	release, err := github.FindRelease(ctx, config.RawGithubv4Client, namespace, repoName, versionWithPrefix)
+	release, err := github.FindRelease(ctx, config.RawGithubv4Client, namespace, repoName, version)
 	if err != nil {
 		return "", err
 	}
@@ -80,7 +78,7 @@ func getReleaseTag(ctx context.Context, config config.Config, namespace string, 
 	// If the release exists, then the tag does have the "v" prefix
 	// If it does not, then we assume the tag exists without the "v" prefix
 	if release != nil {
-		return versionWithPrefix, nil
+		return fmt.Sprintf("v%s", version), nil
 	}
 
 	return version, nil

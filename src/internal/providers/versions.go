@@ -61,22 +61,23 @@ func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace strin
 		for vr := range versionCh {
 			if vr.Err != nil {
 				slog.Error("Failed to process some releases", "error", vr.Err)
-				// we don't want to fail the entire operation if one version fails, just trace the error and continue
+				// we should not fail the entire operation if we can't process a single release
+				// this is because some GitHub releases may not have the correct assets attached,
+				// and therefore we should just log and skip them
 				xrayErr := xray.AddError(tracedCtx, fmt.Errorf("failed to process some releases: %w", vr.Err))
 				if xrayErr != nil {
 					return fmt.Errorf("failed to add error to trace: %w", err)
 				}
-			}
-			if vr.Version.Version != "" {
+			} else if vr.Version.Version != "" && len(vr.Version.DownloadDetails) > 0 {
+				// only add the final list of versions if it's populated and has platforms attached
 				versions = append(versions, vr.Version)
 			}
 		}
-
 		return nil
 	})
 
 	slog.Info("Successfully found versions", "versions", len(versions))
-	return versions, err
+	return versions, nil
 }
 
 // getVersionFromGithubRelease fetches and returns detailed information about a specific version of a provider hosted on GitHub.
@@ -111,13 +112,8 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 
 	// attach the protocol versions to the version result
 	if manifest != nil {
-		slog.Error("Found manifest", "protocols", manifest.Metadata.ProtocolVersions)
+		slog.Info("Found manifest", "protocols", manifest.Metadata.ProtocolVersions)
 		protocols = manifest.Metadata.ProtocolVersions
-	}
-
-	result.Version = types.CacheVersion{
-		Version:   strings.TrimPrefix(r.TagName, "v"),
-		Protocols: protocols,
 	}
 
 	slog.Info("Fetching shasums")
@@ -142,6 +138,7 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 		}
 	}
 
+	downloadDetails := make([]types.CacheVersionDownloadDetails, 0, len(platforms))
 	// for each of the supported platforms, we need to find the appropriate assets
 	// and add them to the version result
 	for _, platform := range platforms {
@@ -150,9 +147,17 @@ func getVersionFromGithubRelease(ctx context.Context, r github.GHRelease, versio
 		if details != nil {
 			details.SHASumsURL = shaSumsURL.DownloadURL
 			details.SHASumsSignatureURL = shaSumsSignatureURL.DownloadURL
-			result.Version.DownloadDetails = append(result.Version.DownloadDetails, *details)
+			downloadDetails = append(downloadDetails, *details)
 		}
 	}
+
+	// only populate the version if we have all download details
+	result.Version = types.CacheVersion{
+		Version:         strings.TrimPrefix(r.TagName, "v"),
+		Protocols:       protocols,
+		DownloadDetails: downloadDetails,
+	}
+
 	versionCh <- result
 }
 
