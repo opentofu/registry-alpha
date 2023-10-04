@@ -38,6 +38,7 @@ data "archive_file" "populate_provider_versions_archive" {
 
 // create the lambda function from zip file
 resource "aws_lambda_function" "api_function" {
+  depends_on = [aws_cloudwatch_log_group.api_function_log_group]
   function_name = "${replace(var.domain_name, ".", "-")}-registry-handler"
   description   = "A basic lambda to handle registry api events"
   role          = aws_iam_role.lambda.arn
@@ -76,6 +77,7 @@ resource "aws_lambda_provisioned_concurrency_config" "api_function" {
 
 // create the lambda function from zip file
 resource "aws_lambda_function" "populate_provider_versions_function" {
+  depends_on = [aws_cloudwatch_log_group.populate_provider_versions_function_log_group]
   function_name = "${replace(var.domain_name, ".", "-")}-populate-provider-versions"
   description   = "A basic lambda to handle populating provider versions in dynamodb"
   role          = aws_iam_role.lambda.arn
@@ -104,7 +106,7 @@ resource "aws_lambda_function" "populate_provider_versions_function" {
 resource "aws_lambda_permission" "api_gateway_invoke_lambda_permission" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.api_function.function_name
+  function_name = "${aws_lambda_function.api_function.function_name}"
   principal     = "apigateway.amazonaws.com"
 
   # The /*/* portion grants access from any method on any resource
@@ -112,7 +114,12 @@ resource "aws_lambda_permission" "api_gateway_invoke_lambda_permission" {
   source_arn = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
 }
 
-resource "aws_cloudwatch_log_group" "log_group" {
+resource "aws_cloudwatch_log_group" "api_function_log_group" {
   name              = "/aws/lambda/${aws_lambda_function.api_function.function_name}"
+  retention_in_days = 7
+}
+
+resource "aws_cloudwatch_log_group" "populate_provider_versions_function_log_group" {
+  name              = "/aws/lambda/${aws_lambda_function.populate_provider_versions_function.function_name}"
   retention_in_days = 7
 }
