@@ -1,0 +1,59 @@
+name: CI Deployment
+
+on:
+  pull_request:
+    types:
+      - synchronize
+      - opened
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    environment: dev-plan
+    permissions:
+      id-token: read
+      contents: read
+    env:
+      TF_IN_AUTOMATION: true
+
+      # Note: These 3 secrets below are configured as github environment secrets
+      # and not as repository secrets. This allows the usage of consistent names
+      # for the secrets across all workflows.
+      TF_VAR_github_api_token: ${{ secrets.REGISTRY_GITHUB_TOKEN }}
+      TF_VAR_route53_zone_id: ${{ secrets.REGISTRY_ZONE_ID }}
+      TF_VAR_domain_name: ${{ secrets.REGISTRY_DOMAIN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.6
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # A role can be created by following the documentation here:
+          # https://github.com/aws-actions/configure-aws-credentials#sample-iam-oidc-cloudformation-template
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Initialize Terraform
+        run: terraform init
+
+      - name: Select Terraform Workspace
+        run: terraform workspace select dev
+
+      - name: Plan changes
+        id: plan
+        run: terraform plan -input=false -detailed-exitcode -out=project.tfplan || true
+
+      - name: Check for failure
+        if: steps.plan.outputs.exitcode != 0 && steps.plan.outputs.exitcode != 2
+        run: |
+          echo "Terraform plan failed"
+          exit 1
+
+      - name: Show the plan
+        run: terraform show project.tfplan
