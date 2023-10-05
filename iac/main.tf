@@ -12,7 +12,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "registry-tfstate"
+    bucket = "env0-registry-tfstate"
     key    = "terraform.tfstate"
     dynamodb_table = "terraform_locks"
 
