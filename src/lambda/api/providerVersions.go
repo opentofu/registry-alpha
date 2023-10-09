@@ -85,12 +85,18 @@ func listProviderVersions(config config.Config) LambdaFunc {
 
 func listVersionsFromCache(ctx context.Context, config config.Config, effectiveNamespace, providerType string) ([]types.Version, error) {
 	document, err := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, providerType))
-	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
-	if document != nil && !document.IsStale() {
-		slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
-		return document.Versions.ToVersions(), err
+	if err != nil || document == nil {
+		return nil, err
 	}
-	return nil, err
+
+	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
+
+	if document.IsStale() {
+		return nil, nil
+	}
+
+	slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
+	return document.Versions.ToVersions(), nil
 }
 
 func listVersionsFromRepository(ctx context.Context, config config.Config, effectiveNamespace, providerType string) ([]types.Version, bool, error) {
