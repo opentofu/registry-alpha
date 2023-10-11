@@ -79,10 +79,10 @@ func HandleRequest(config *config.Config) LambdaFunc {
 				return err
 			}
 
+			// if we have a document, we should combine the fetched versions with the existing versions
+			// this is so that we don't lose any versions that were added since the last time we fetched
+			// but also so we don't add duplicates
 			if since != nil && document != nil {
-				// if we have a document, we should combine the fetched versions with the existing versions
-				// this is so that we don't lose any versions that were added since the last time we fetched
-				// but also so we don't add duplicates
 				fetchedVersions = append(document.Versions, fetchedVersions...)
 				slog.Info("Combined versions", "versions", len(fetchedVersions))
 			}
