@@ -70,6 +70,8 @@ func HandleRequest(config *config.Config) LambdaFunc {
 					slog.Info("Document is up to date, not updating")
 					return nil
 				}
+				slog.Info("Document is stale, fetching versions", "last_updated", document.LastUpdated)
+				since = &document.LastUpdated
 			}
 
 			fetchedVersions, err := fetchFromGithub(tracedCtx, e, config, since)
@@ -77,7 +79,7 @@ func HandleRequest(config *config.Config) LambdaFunc {
 				return err
 			}
 
-			if since != nil {
+			if since != nil && document != nil {
 				// if we have a document, we should combine the fetched versions with the existing versions
 				// this is so that we don't lose any versions that were added since the last time we fetched
 				// but also so we don't add duplicates
