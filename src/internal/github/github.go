@@ -126,6 +126,8 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 	return release, err
 }
 
+const sincePadding = 2 * time.Minute
+
 func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, name string, since *time.Time) (releases []GHRelease, err error) {
 	err = xray.Capture(ctx, "github.releases.fetch", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
@@ -152,7 +154,7 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 				// if we have been provided a "since" time, we should only fetch releases created after that time
 				// if the release was created before the given time, we can stop fetching
 				// this is because all releases are ordered by creation date
-				if since != nil && r.CreatedAt.Before(*since) {
+				if since != nil && r.CreatedAt.Before(since.Add(-sincePadding)) {
 					slog.Info("New release was created before given time, stopping reading releases", "release", r.TagName, "created_at", r.CreatedAt, "since", since)
 					break
 				}

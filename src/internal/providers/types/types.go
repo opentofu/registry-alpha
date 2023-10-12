@@ -66,6 +66,25 @@ func (l VersionList) ToVersions() []Version {
 	return versionsToReturn
 }
 
+func (l VersionList) Deduplicate() VersionList {
+	if len(l) == 0 {
+		return l
+	}
+	versions := make(map[string]CacheVersion)
+	for _, v := range l {
+		if _, ok := versions[v.Version]; !ok {
+			versions[v.Version] = v
+		}
+	}
+
+	// Convert the map back into a list
+	var versionsToReturn VersionList
+	for _, v := range versions {
+		versionsToReturn = append(versionsToReturn, v)
+	}
+	return versionsToReturn
+}
+
 func (i *CacheItem) GetVersionDetails(version string, os string, arch string) (*VersionDetails, bool) {
 	for _, v := range i.Versions {
 		if v.Version == version {
