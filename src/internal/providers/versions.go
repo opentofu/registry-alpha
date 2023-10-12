@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/opentofu/registry/internal/github"
@@ -28,18 +29,26 @@ type versionResult struct {
 // - ghClient: The GitHub GraphQL client to interact with the GitHub GraphQL API.
 // - namespace: The GitHub namespace (typically, the organization or user) under which the provider repository is hosted.
 // - name: The name of the provider repository.
+// - since: The time after which to fetch versions. If nil, it fetches all versions.
 //
 // Returns a slice of Version structures detailing each available version. If an error occurs during fetching or processing, it returns an error.
-func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions types.VersionList, err error) {
+func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, since *time.Time) (versions types.VersionList, err error) {
 	err = xray.Capture(ctx, "provider.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
 
 		slog.Info("Fetching versions")
 
-		releases, releasesErr := github.FetchReleases(tracedCtx, ghClient, namespace, name)
+		releases, releasesErr := github.FetchReleases(tracedCtx, ghClient, namespace, name, since)
 		if releasesErr != nil {
 			return fmt.Errorf("failed to fetch releases: %w", releasesErr)
+		}
+
+		// if the releases slice is empty, we can't do anything
+		// so, we should just return an empty slice
+		if len(releases) == 0 {
+			slog.Info("No releases found")
+			return nil
 		}
 
 		versionCh := make(chan versionResult, len(releases))

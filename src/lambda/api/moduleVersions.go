@@ -60,8 +60,11 @@ func listModuleVersions(config config.Config) LambdaFunc {
 			return NotFoundResponse, nil
 		}
 
+		// TODO: Implement ddb caching similar to provider versions, but for modules
+		// this will also allow us to populate the `since` parameter in the module.GetVersions call below
+
 		// fetch all the versions
-		versions, err := modules.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, repoName)
+		versions, err := modules.GetVersions(ctx, config.RawGithubv4Client, params.Namespace, repoName, nil)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}

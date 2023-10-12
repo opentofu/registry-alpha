@@ -107,7 +107,7 @@ func listVersionsFromRepository(ctx context.Context, config config.Config, effec
 	}
 
 	slog.Info("Fetching versions from github\n")
-	versionList, err := providers.GetVersions(ctx, config.RawGithubv4Client, effectiveNamespace, repoName)
+	versionList, err := providers.GetVersions(ctx, config.RawGithubv4Client, effectiveNamespace, repoName, nil)
 	return versionList.ToVersions(), exists, err
 }
 

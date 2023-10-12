@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/shurcooL/githubv4"
@@ -13,14 +14,14 @@ import (
 )
 
 // GetVersions fetches a list of versions for a GitHub repository identified by its namespace and name.
-func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string) (versions []Version, err error) {
+func GetVersions(ctx context.Context, ghClient *githubv4.Client, namespace string, name string, since *time.Time) (versions []Version, err error) {
 	err = xray.Capture(ctx, "module.versions", func(tracedCtx context.Context) error {
 		xray.AddAnnotation(tracedCtx, "namespace", namespace)
 		xray.AddAnnotation(tracedCtx, "name", name)
 
 		slog.Info("Fetching releases")
 
-		releases, fetchErr := github.FetchReleases(tracedCtx, ghClient, namespace, name)
+		releases, fetchErr := github.FetchReleases(tracedCtx, ghClient, namespace, name, since)
 		if err != nil {
 			return fmt.Errorf("failed to fetch releases: %w", fetchErr)
 		}
