@@ -85,6 +85,10 @@ func HandleRequest(config *config.Config) LambdaFunc {
 			if since != nil && document != nil {
 				fetchedVersions = append(document.Versions, fetchedVersions...)
 				slog.Info("Combined versions", "versions", len(fetchedVersions))
+
+				// deduplicate the versions
+				fetchedVersions = fetchedVersions.Deduplicate()
+				slog.Info("Deduplicated versions", "versions", len(fetchedVersions))
 			}
 
 			versions = fetchedVersions
