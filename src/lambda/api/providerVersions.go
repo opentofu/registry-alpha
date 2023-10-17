@@ -85,10 +85,10 @@ func listProviderVersions(config config.Config) LambdaFunc {
 
 // listVersionsFromCache retrieves version details for a given effective namespace and provider type from the cache.
 // - If the cached document is not present or there's an error during retrieval, the function returns an error.
+// - If the cached document is present and is not stale, the cached versions are returned directly.
 // - If the cached document is present and is detected as stale:
 //   - An asynchronous update via a lambda function is triggered.
 //   - The stale version details are returned.
-// - If the cached document is present and is not stale, the cached versions are returned directly.
 func listVersionsFromCache(ctx context.Context, config config.Config, effectiveNamespace, providerType string) ([]types.Version, error) {
 	document, err := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, providerType))
 	if err != nil || document == nil {
