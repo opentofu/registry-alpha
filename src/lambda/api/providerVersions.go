@@ -83,6 +83,12 @@ func listProviderVersions(config config.Config) LambdaFunc {
 	}
 }
 
+// listVersionsFromCache retrieves version details for a given effective namespace and provider type from the cache.
+// - If the cached document is not present or there's an error during retrieval, the function returns an error.
+// - If the cached document is present and is detected as stale:
+//   - An asynchronous update via a lambda function is triggered.
+//   - The stale version details are returned.
+// - If the cached document is present and is not stale, the cached versions are returned directly.
 func listVersionsFromCache(ctx context.Context, config config.Config, effectiveNamespace, providerType string) ([]types.Version, error) {
 	document, err := config.ProviderVersionCache.GetItem(ctx, fmt.Sprintf("%s/%s", effectiveNamespace, providerType))
 	if err != nil || document == nil {
@@ -92,10 +98,14 @@ func listVersionsFromCache(ctx context.Context, config config.Config, effectiveN
 	slog.Info("Found document in cache", "last_updated", document.LastUpdated, "versions", len(document.Versions))
 
 	if document.IsStale() {
-		return nil, nil
+		// if it's stale, trigger the lambda to update, and still return the stale document
+		slog.Info("Document is stale, returning cached versions and triggering lambda", "last_updated", document.LastUpdated)
+		if triggerErr := triggerPopulateProviderVersions(ctx, config, effectiveNamespace, providerType); triggerErr != nil {
+			slog.Error("Error triggering lambda", "error", triggerErr)
+		}
 	}
 
-	slog.Info("Document is not too old, returning cached versions", "last_updated", document.LastUpdated)
+	// if it's stale or not, we still return the cached versions
 	return document.Versions.ToVersions(), nil
 }
 
