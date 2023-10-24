@@ -97,7 +97,7 @@ func FindRelease(ctx context.Context, ghClient *githubv4.Client, namespace, name
 			}
 
 			for _, r := range nodes {
-				if r.IsDraft || r.IsPrerelease {
+				if r.IsDraft {
 					continue
 				}
 
@@ -147,7 +147,7 @@ func FetchReleases(ctx context.Context, ghClient *githubv4.Client, namespace, na
 			slog.Info("Checking for possible new releases", "count", len(nodes))
 
 			for _, r := range nodes {
-				if r.IsDraft || r.IsPrerelease {
+				if r.IsDraft {
 					continue
 				}
 
