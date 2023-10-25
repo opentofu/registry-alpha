@@ -29,7 +29,7 @@ jobs:
       TF_VAR_domain_name: ${{ secrets.REGISTRY_DOMAIN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v2
         with:
@@ -45,6 +45,12 @@ jobs:
 
       - name: Initialize Terraform
         run: terraform init
+
+      - name: Terraform Fmt Check
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform  validate
 
       - name: Select Terraform Workspace
         run: terraform workspace select prod
