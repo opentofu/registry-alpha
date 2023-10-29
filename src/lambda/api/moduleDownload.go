@@ -52,7 +52,7 @@ func downloadModuleVersion(config config.Config) LambdaFunc {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
 
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusOK, Body: "", Headers: map[string]string{
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusNoContent, Body: "", Headers: map[string]string{
 			"X-Terraform-Get": fmt.Sprintf("git::https://github.com/%s/%s?ref=%s", params.Namespace, repoName, releaseTag),
 		}}, nil
 	}
