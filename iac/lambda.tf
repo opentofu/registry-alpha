@@ -1,7 +1,7 @@
 resource "null_resource" "api_function_binary" {
   provisioner "local-exec" {
     command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -tags lambda.norpc -ldflags='-s -w' -o ../api_function_bootstrap/bootstrap ./lambda/api"
-    working_dir = "./src"
+    working_dir = "../src"
   }
 
   triggers = {
@@ -12,7 +12,7 @@ resource "null_resource" "api_function_binary" {
 resource "null_resource" "populate_provider_versions_binary" {
   provisioner "local-exec" {
     command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -tags lambda.norpc -ldflags='-s -w' -o ../populate_provider_versions_bootstrap/bootstrap ./lambda/populate_provider_versions"
-    working_dir = "./src"
+    working_dir = "../src"
   }
 
   triggers = {
@@ -24,7 +24,7 @@ data "archive_file" "api_function_archive" {
   depends_on = [null_resource.api_function_binary]
 
   type        = "zip"
-  source_file = "./api_function_bootstrap/bootstrap"
+  source_file = "../api_function_bootstrap/bootstrap"
   output_path = "api_bootstrap.zip"
 }
 
@@ -32,7 +32,7 @@ data "archive_file" "populate_provider_versions_archive" {
   depends_on = [null_resource.populate_provider_versions_binary]
 
   type        = "zip"
-  source_file = "./populate_provider_versions_bootstrap/bootstrap"
+  source_file = "../populate_provider_versions_bootstrap/bootstrap"
   output_path = "populate_provider_versions_bootstrap.zip"
 }
 
