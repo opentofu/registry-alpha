@@ -1,3 +1,8 @@
+locals {
+  api_function_lambda_name = "${replace(var.domain_name, ".", "-")}-registry-handler"
+  populate_provider_versions_function_lambda_name = "${replace(var.domain_name, ".", "-")}-populate-provider-versions"
+}
+
 resource "null_resource" "api_function_binary" {
   provisioner "local-exec" {
     command     = "GOOS=linux GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-trimpath go build -mod=readonly -tags lambda.norpc -ldflags='-s -w' -o ../api_function_bootstrap/bootstrap ./lambda/api"
@@ -38,7 +43,8 @@ data "archive_file" "populate_provider_versions_archive" {
 
 // create the lambda function from zip file
 resource "aws_lambda_function" "api_function" {
-  function_name = "${replace(var.domain_name, ".", "-")}-registry-handler"
+  depends_on = [aws_cloudwatch_log_group.api_function_log_group]
+  function_name = local.api_function_lambda_name
   description   = "A basic lambda to handle registry api events"
   role          = aws_iam_role.lambda.arn
   handler       = "registry-handler"
@@ -76,7 +82,7 @@ resource "aws_lambda_provisioned_concurrency_config" "api_function" {
 
 // create the lambda function from zip file
 resource "aws_lambda_function" "populate_provider_versions_function" {
-  function_name = "${replace(var.domain_name, ".", "-")}-populate-provider-versions"
+  function_name = local.populate_provider_versions_function_lambda_name
   description   = "A basic lambda to handle populating provider versions in dynamodb"
   role          = aws_iam_role.lambda.arn
   handler       = "populate-provider-versions"
@@ -112,7 +118,12 @@ resource "aws_lambda_permission" "api_gateway_invoke_lambda_permission" {
   source_arn = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
 }
 
-resource "aws_cloudwatch_log_group" "log_group" {
-  name              = "/aws/lambda/${aws_lambda_function.api_function.function_name}"
+resource "aws_cloudwatch_log_group" "api_function_log_group" {
+  name              = "/aws/lambda/${local.api_function_lambda_name}"
+  retention_in_days = 7
+}
+
+resource "aws_cloudwatch_log_group" "populate_provider_versions_function_log_group" {
+  name              = "/aws/lambda/${local.populate_provider_versions_function_lambda_name}"
   retention_in_days = 7
 }
